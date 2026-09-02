@@ -1,0 +1,12 @@
+node_modules/
+.next/
+frontend/.next/
+frontend/node_modules/
+*.log
+.env
+frontend/.env.local
+out/
+dist/
+out2.json
+out3.json
+out.json
