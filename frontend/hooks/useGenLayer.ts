@@ -43,8 +43,15 @@ export function useGenLayer() {
             setClient(glClient);
           }
         }
-      } catch (e) {
-        console.error("Failed to init GenLayer client", e);
+      } catch (e: any) {
+        // Suppress expected errors during polling when the contract is not found or storage is empty
+        if (
+          !e?.message?.includes("ResourceNotFoundRpcError") && 
+          !e?.message?.includes("execution failed") && 
+          !e?.message?.includes("not found")
+        ) {
+          console.error("Failed to init GenLayer client", e);
+        }
       } finally {
         setIsChecking(false);
       }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useGenLayer } from "@/hooks/useGenLayer";
 import EmptyState from "@/components/EmptyState";
 import { parseEther } from "viem";
 import { CONTRACT_ADDRESS } from "@/lib/genlayer";
 
 export default function CreateEscrow() {
+  const router = useRouter();
   const { isReady, client, isChecking, isContractDeployed } = useGenLayer();
   
   const [advisoryId, setAdvisoryId] = useState("");
@@ -44,6 +46,10 @@ export default function CreateEscrow() {
       setCommitSha("");
       setRecipient("");
       setAmount("");
+
+      setTimeout(() => {
+        router.push("/claims");
+      }, 1500);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Transaction failed");

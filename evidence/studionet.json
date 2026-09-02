@@ -1,28 +1,28 @@
 {
-  "contractAddress": "0x9829CE3DCCEE919ff2E481D85042AF371D92A7bD",
+  "contractAddress": "0x236B8f9316d5331D8AEA4885F9c906251EC9E5cc",
   "network": "GenLayer StudioNet",
   "tests": [
     {
       "path": "FIXED_EXACT",
-      "createTx": "0x0b83f14151360cc4e2e7763f38d6ffaca3b7ec6041403449e739ba118f2471bf",
-      "resolveTx": "0x523a5cfb7d6ab4d4c95662c92874782f42a8b67c7d1ca521dc5bcdb888c8c260",
+      "createTx": "0xe8f030f44c214385d4310ff76a33c2702b9aa15f46a0642407d6955d1ba7765a",
+      "resolveTx": "0xd6e97a66755ecd5bddb9bfea16f58d2ed118b2668eaa9530dc1ce1e096847879",
       "claimId": "claim-1"
     },
     {
       "path": "NOT_FIXED",
-      "createTx": "0xa0840e1de64e0f0456619bb311d873a83d4eb46d5efdecf4ca7b3011c62342f0",
-      "resolveTx": "0x4577355d03dbe51c0662ad198041f34eb5119ea3e2ca2c404f2e5d17a20d1612",
+      "createTx": "0x50ebf28e21a778ca39c9ca4b2ff7d046abd580df815542b3f1c76ffff51a87b0",
+      "resolveTx": "0x3605c9c7e7097c8e7f190c8159b7a3e95b421568cb81a53331faa55d74d52e51",
       "claimId": "claim-2"
     },
     {
       "path": "INSUFFICIENT",
-      "createTx": "0x593265f82919e57096a1711802084a2fd8d3b1102bb30ba167f8522aff794724",
-      "resolveTx": "0x2920a9f48dc34092d46f9f7debbae10b89eb709813448c5a2dc26190cbe065c9",
+      "createTx": "0xd255c599b16e39144e66d559fd5fdcc98a96abecd37539a74c4862c27df6945e",
+      "resolveTx": "0x10cec6da9a7c45c9d21d0bb829eed29801011187da54194c1d9cb6fecbfb2cea",
       "claimId": "claim-3"
     },
     {
       "path": "REJECTED_CREATE",
-      "createTx": "0x63d6afd078f6a77a5dfb461f14defa1207a7e2237da5ca8a3132f71670be9f6c"
+      "createTx": "0xe6e3b2f3aaeb222de0895c16c9d4229950df11ab5d3a21283d49f81e225fe1bb"
     }
   ]
 }

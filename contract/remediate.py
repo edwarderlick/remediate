@@ -1,5 +1,6 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 import json
+import urllib.request
 from dataclasses import dataclass
 from genlayer import *
 
@@ -20,6 +21,7 @@ class Claim:
     funder: Address
     amount: u256
     state: str
+    rationale: str
 
 class RemediateContract(gl.Contract):
     next_claim_id: u256
@@ -44,24 +46,38 @@ class RemediateContract(gl.Contract):
     def _refund(self, to: Address, amount: u256):
         self._emit_transfer(to, amount)
 
-    def _mark_insufficient(self, claim_id: str, funder: Address, amount: u256):
+    def _mark_insufficient(self, claim_id: str, funder: Address, amount: u256, rationale: str = ""):
         claim = self.claims[claim_id]
         claim.state = STATE_INSUFFICIENT
+        claim.rationale = rationale
         self.claims[claim_id] = claim
         self._refund(funder, amount)
 
     @gl.public.view
     def get_all_claims(self) -> str:
         all_claims = {}
-        for claim_id in self.claims.keys():
-            all_claims[claim_id] = json.loads(self.get_claim(claim_id))
+        try:
+            for claim_id, v in self.claims.items():
+                if v:
+                    all_claims[claim_id] = {
+                        "advisory_id": v.advisory_id,
+                        "owner_repo": v.owner_repo,
+                        "commit_sha": v.commit_sha,
+                        "recipient": str(v.recipient),
+                        "funder": str(v.funder),
+                        "amount": int(v.amount),
+                        "state": v.state,
+                        "rationale": getattr(v, "rationale", "")
+                    }
+        except Exception:
+            pass
         return json.dumps(all_claims)
 
     @gl.public.view
     def get_claim(self, claim_id: str) -> str:
-        if claim_id not in self.claims:
+        v = self.claims.get(claim_id)
+        if not v:
             return "{}"
-        v = self.claims[claim_id]
         return json.dumps({
             "advisory_id": v.advisory_id,
             "owner_repo": v.owner_repo,
@@ -69,7 +85,8 @@ class RemediateContract(gl.Contract):
             "recipient": str(v.recipient),
             "funder": str(v.funder),
             "amount": int(v.amount),
-            "state": v.state
+            "state": v.state,
+            "rationale": getattr(v, "rationale", "")
         })
 
     @gl.public.write.payable
@@ -93,7 +110,8 @@ class RemediateContract(gl.Contract):
                 recipient=recipient_addr,
                 funder=sender,
                 amount=u256(value),
-                state=STATE_OPEN
+                state=STATE_OPEN,
+                rationale=""
             )
             return json.dumps({"ok": True, "claim_id": claim_id})
         except Exception as e:
@@ -113,37 +131,33 @@ class RemediateContract(gl.Contract):
         amount = claim.amount
         recipient = claim.recipient
         commit_sha = claim.commit_sha
-        owner_repo = claim.owner_repo
+        owner_repo = claim.owner_repo.replace("https://", "").replace("http://", "").strip()
 
         def fetch_advisory() -> str:
             url = f"https://api.osv.dev/v1/vulns/{advisory_id}"
             try:
-                res = gl.nondet.web.get(url)
-                if res.status != 200:
-                    return "FAIL"
-                try:
-                    return res.body.decode("utf-8")
-                except Exception:
-                    return str(res.body)
+                res = gl.nondet.web.render(url, mode="text")
+                return res
             except Exception:
                 return "FAIL"
                 
         def val_advisory(leaders_res: gl.vm.Result) -> bool:
             return True
             
-        advisory_text = gl.vm.run_nondet_unsafe(fetch_advisory, val_advisory)
-        if advisory_text == "FAIL":
-            self._mark_insufficient(claim_id, funder, amount)
-            return json.dumps({"ok": False, "reason": "Failed to fetch advisory"})
-
         try:
+            advisory_text = gl.vm.run_nondet_unsafe(fetch_advisory, val_advisory)
+            if advisory_text == "FAIL":
+                self._mark_insufficient(claim_id, funder, amount, "Failed to fetch advisory via HTTP")
+                return json.dumps({"ok": False, "reason": "Failed to fetch advisory"})
+
             advisory = json.loads(advisory_text)
-        except Exception:
-            self._mark_insufficient(claim_id, funder, amount)
-            return json.dumps({"ok": False, "reason": "Failed to fetch advisory"})
+        except Exception as e:
+            err_msg = f"Failed to fetch or parse advisory: {str(e)}"
+            self._mark_insufficient(claim_id, funder, amount, err_msg)
+            return json.dumps({"ok": False, "reason": err_msg})
 
         if advisory.get("withdrawn"):
-            self._mark_insufficient(claim_id, funder, amount)
+            self._mark_insufficient(claim_id, funder, amount, "Advisory is withdrawn")
             return json.dumps({"ok": False, "reason": "Advisory is withdrawn"})
 
         fixed_match = False
@@ -187,11 +201,17 @@ class RemediateContract(gl.Contract):
         def val_fallback(leaders_res: gl.vm.Result) -> bool:
             return True
 
-        llm_text = gl.vm.run_nondet_unsafe(model_fallback, val_fallback)
+        try:
+            llm_text = gl.vm.run_nondet_unsafe(model_fallback, val_fallback)
+        except Exception as e:
+            err_msg = f"Execution failed on LLM/patch fetch: {str(e)}"
+            self._mark_insufficient(claim_id, funder, amount, err_msg)
+            return json.dumps({"ok": False, "reason": err_msg})
         
         if "FAIL_PATCH" in llm_text or "FAIL_LLM" in llm_text:
-            self._mark_insufficient(claim_id, funder, amount)
-            return json.dumps({"ok": False, "reason": "LLM or patch fetch failed"})
+            err_msg = f"LLM or patch fetch failed: {llm_text}"
+            self._mark_insufficient(claim_id, funder, amount, err_msg)
+            return json.dumps({"ok": False, "reason": err_msg})
 
         if "YES" in llm_text:
             claim.state = STATE_FIXED_EQUIVALENT
