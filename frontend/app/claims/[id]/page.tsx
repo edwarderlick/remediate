@@ -91,8 +91,10 @@ export default function EscrowDocket() {
         functionName: "resolve",
         args: [id as string]
       });
-      setMessage(`Resolve TX Submitted: ${hash}`);
-      setTimeout(fetchClaim, 5000);
+      setMessage(`Resolve TX Submitted: ${hash}. Waiting for consensus...`);
+      await client.waitForTransactionReceipt({ hash });
+      setMessage(`Resolve TX Finalized!`);
+      fetchClaim();
     } catch (err: any) {
       handleError(err);
     } finally {
@@ -110,8 +112,10 @@ export default function EscrowDocket() {
         functionName: "cancel",
         args: [id as string]
       });
-      setMessage(`Cancel TX Submitted: ${hash}`);
-      setTimeout(fetchClaim, 5000);
+      setMessage(`Cancel TX Submitted: ${hash}. Waiting for consensus...`);
+      await client.waitForTransactionReceipt({ hash });
+      setMessage(`Cancel TX Finalized!`);
+      fetchClaim();
     } catch (err: any) {
       handleError(err);
     } finally {
@@ -129,7 +133,9 @@ export default function EscrowDocket() {
         functionName: "withdraw",
         args: []
       });
-      setMessage(`Withdraw TX Submitted: ${hash}`);
+      setMessage(`Withdraw TX Submitted: ${hash}. Waiting for consensus...`);
+      await client.waitForTransactionReceipt({ hash });
+      setMessage(`Withdraw TX Finalized!`);
       setPendingBalance(BigInt(0));
     } catch (err: any) {
       handleError(err);
@@ -150,8 +156,9 @@ export default function EscrowDocket() {
   const funderAddress = claim?.funder || claim?.funder_address || claim?.sender_address || "";
   const isFunder = Boolean(address && funderAddress && address.toLowerCase() === funderAddress.toLowerCase());
   
+  const safeOwnerRepo = claim?.owner_repo?.replace("https://", "")?.replace("http://", "")?.replace("github.com/", "")?.trim() || "";
   const osvUrl = `https://api.osv.dev/v1/vulns/${claim?.advisory_id}`;
-  const patchUrl = `https://github.com/${claim?.owner_repo}/commit/${claim?.commit_sha}.patch`;
+  const patchUrl = `https://github.com/${safeOwnerRepo}/commit/${claim?.commit_sha}.patch`;
 
   let resolutionResult = "";
   if (!isOpen) {
@@ -274,7 +281,7 @@ export default function EscrowDocket() {
                 disabled={actionLoading}
                 className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
-                Resolve Claim
+                {actionLoading ? "Pending..." : "Resolve Claim"}
               </button>
             )}
             
@@ -284,7 +291,7 @@ export default function EscrowDocket() {
                 disabled={actionLoading}
                 className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50"
               >
-                Cancel Escrow
+                {actionLoading ? "Pending..." : "Cancel Escrow"}
               </button>
             )}
 
@@ -294,7 +301,7 @@ export default function EscrowDocket() {
                 disabled={actionLoading}
                 className="border border-lines text-gray-300 font-bold uppercase tracking-wider px-6 py-3 hover:bg-lines transition-colors disabled:opacity-50 ml-auto"
               >
-                Withdraw {formatEther(pendingBalance)} GEN
+                {actionLoading ? "Pending..." : `Withdraw ${formatEther(pendingBalance)} GEN`}
               </button>
             )}
           </div>

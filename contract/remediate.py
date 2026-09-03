@@ -131,7 +131,7 @@ class RemediateContract(gl.Contract):
         amount = claim.amount
         recipient = claim.recipient
         commit_sha = claim.commit_sha
-        owner_repo = claim.owner_repo.replace("https://", "").replace("http://", "").strip()
+        owner_repo = claim.owner_repo.replace("https://", "").replace("http://", "").replace("github.com/", "").strip()
 
         def fetch_advisory() -> str:
             url = f"https://api.osv.dev/v1/vulns/{advisory_id}"
@@ -164,7 +164,8 @@ class RemediateContract(gl.Contract):
         affected_list = advisory.get("affected", [])
         for aff in affected_list:
             repo_url = aff.get("repo", "")
-            if owner_repo.lower() in repo_url.lower():
+            clean_repo_url = repo_url.replace("https://", "").replace("http://", "").replace("github.com/", "").strip()
+            if owner_repo.lower() == clean_repo_url.lower() or owner_repo.lower() in clean_repo_url.lower():
                 ranges = aff.get("ranges", [])
                 for r in ranges:
                     if r.get("type") == "GIT":

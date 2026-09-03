@@ -40,7 +40,9 @@ export default function CreateEscrow() {
         value: parseEther(amount)
       });
       
-      setSuccess(`Escrow created! TX Hash: ${hash}`);
+      setSuccess(`Escrow created! TX Hash: ${hash}. Waiting for consensus...`);
+      await client.waitForTransactionReceipt({ hash });
+      
       setAdvisoryId("");
       setRepo("");
       setCommitSha("");
@@ -49,7 +51,7 @@ export default function CreateEscrow() {
 
       setTimeout(() => {
         router.push("/claims");
-      }, 1500);
+      }, 500);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Transaction failed");
@@ -147,7 +149,7 @@ export default function CreateEscrow() {
           disabled={!isFormValid || isLoading}
           className="w-full bg-white text-black font-bold uppercase tracking-wider p-4 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isLoading ? "Confirming..." : "Lock Escrow"}
+          {isLoading ? "Pending..." : "Lock Escrow"}
         </button>
       </form>
     </div>
