@@ -56,6 +56,7 @@ export default function CreateEscrow() {
       setAmount("");
 
       setTimeout(() => {
+        router.refresh();
         router.push("/claims");
       }, 500);
     } catch (err: any) {

@@ -9,6 +9,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import Link from "next/link";
 import { formatEther } from "viem";
 
+export const dynamic = 'force-dynamic';
+
 export default function BrowseClaims() {
   const { isReady, client, isChecking, isContractDeployed } = useGenLayer();
   const [claims, setClaims] = useState<any[]>([]);
