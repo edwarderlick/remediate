@@ -130,9 +130,9 @@ class RemediateContract(gl.Contract):
         # Deterministic transaction-specific correlation ID (Provider Court fix)
         hash_input = f"{sender}-{recipient_addr}-{adv_clean}-{repo_clean}-{sha_clean}-{dt}-{nonce}"
         try:
-            digest = gl.keccak256(hash_input.encode("utf-8")).hex()[:16]
+            digest = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()[:16]
         except Exception:
-            digest = hashlib.sha3_256(hash_input.encode("utf-8")).hexdigest()[:16]
+            digest = str(abs(hash(hash_input)))[:16]
 
         claim_id = f"claim-0x{digest}"
         if claim_id in self.claims:

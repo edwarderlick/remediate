@@ -47,7 +47,17 @@ export default function CreateEscrow() {
       });
       
       setSuccess(`Escrow created! TX Hash: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
+      
+      let finalized = false;
+      for (let i = 0; i < 60; i++) {
+        const tx = await client.getTransaction({ hash });
+        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          finalized = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 3000));
+      }
+      if (!finalized) throw new Error("Transaction timed out");
       
       setAdvisoryId("");
       setRepo("");

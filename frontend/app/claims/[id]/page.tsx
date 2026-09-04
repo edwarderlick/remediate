@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useGenLayer } from "@/hooks/useGenLayer";
 import { CONTRACT_ADDRESS } from "@/lib/genlayer";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -10,13 +10,15 @@ import EmptyState from "@/components/EmptyState";
 import { formatEther } from "viem";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, Link2, Terminal, X } from "lucide-react";
-import { useAccount, useSwitchChain } from "wagmi";
+import { useAccount, useSwitchChain, useBalance } from "wagmi";
 
 export default function EscrowDocket() {
   const { id } = useParams();
+  const router = useRouter();
   const { address, chainId } = useAccount();
   const { switchChain } = useSwitchChain();
   const isWrongChain = chainId !== 61999;
+  const { refetch: refetchBalance } = useBalance({ address });
   const { isReady, client, isChecking } = useGenLayer();
   const [claim, setClaim] = useState<any>(null);
   const [pendingBalance, setPendingBalance] = useState<bigint>(BigInt(0));
@@ -104,7 +106,16 @@ export default function EscrowDocket() {
         args: [id as string]
       });
       setMessage(`Resolve TX Submitted: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
+      let finalized = false;
+      for (let i = 0; i < 60; i++) {
+        const tx = await client.getTransaction({ hash });
+        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          finalized = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 3000));
+      }
+      if (!finalized) throw new Error("Transaction timed out");
       setMessage(`Resolve TX Finalized!`);
       fetchClaim();
     } catch (err: any) {
@@ -125,7 +136,16 @@ export default function EscrowDocket() {
         args: [id as string]
       });
       setMessage(`Cancel TX Submitted: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
+      let finalized = false;
+      for (let i = 0; i < 60; i++) {
+        const tx = await client.getTransaction({ hash });
+        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          finalized = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 3000));
+      }
+      if (!finalized) throw new Error("Transaction timed out");
       setMessage(`Cancel TX Finalized!`);
       fetchClaim();
     } catch (err: any) {
@@ -146,9 +166,20 @@ export default function EscrowDocket() {
         args: []
       });
       setMessage(`Withdraw TX Submitted: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
+      let finalized = false;
+      for (let i = 0; i < 60; i++) {
+        const tx = await client.getTransaction({ hash });
+        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          finalized = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 3000));
+      }
+      if (!finalized) throw new Error("Transaction timed out");
       setMessage(`Withdraw TX Finalized!`);
       setPendingBalance(BigInt(0));
+      if (refetchBalance) await refetchBalance();
+      router.refresh();
     } catch (err: any) {
       handleError(err);
     } finally {
