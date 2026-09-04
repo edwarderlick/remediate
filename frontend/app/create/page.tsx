@@ -7,10 +7,14 @@ import { useGenLayer } from "@/hooks/useGenLayer";
 import EmptyState from "@/components/EmptyState";
 import { parseEther } from "viem";
 import { CONTRACT_ADDRESS } from "@/lib/genlayer";
+import { useAccount, useSwitchChain } from "wagmi";
 
 export default function CreateEscrow() {
   const router = useRouter();
   const { isReady, client, isChecking, isContractDeployed } = useGenLayer();
+  const { chainId } = useAccount();
+  const { switchChain } = useSwitchChain();
+  const isWrongChain = chainId !== 61999;
   
   const [advisoryId, setAdvisoryId] = useState("");
   const [repo, setRepo] = useState("");
@@ -150,13 +154,23 @@ export default function CreateEscrow() {
           />
         </div>
 
-        <button 
-          type="submit"
-          disabled={!isFormValid || isLoading}
-          className="w-full bg-white text-black font-bold uppercase tracking-wider p-4 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading ? "Pending..." : "Lock Escrow"}
-        </button>
+        {isWrongChain ? (
+          <button 
+            type="button"
+            onClick={() => switchChain({ chainId: 61999 })}
+            className="w-full bg-white text-black font-bold uppercase tracking-wider p-4 hover:bg-gray-200 transition-colors"
+          >
+            Switch to GenLayer StudioNet
+          </button>
+        ) : (
+          <button 
+            type="submit"
+            disabled={!isFormValid || isLoading}
+            className="w-full bg-white text-black font-bold uppercase tracking-wider p-4 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isLoading ? "Pending..." : "Lock Escrow"}
+          </button>
+        )}
       </form>
     </div>
   );

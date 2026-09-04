@@ -10,11 +10,13 @@ import EmptyState from "@/components/EmptyState";
 import { formatEther } from "viem";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, Link2, Terminal, X } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 
 export default function EscrowDocket() {
   const { id } = useParams();
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
+  const { switchChain } = useSwitchChain();
+  const isWrongChain = chainId !== 61999;
   const { isReady, client, isChecking } = useGenLayer();
   const [claim, setClaim] = useState<any>(null);
   const [pendingBalance, setPendingBalance] = useState<bigint>(BigInt(0));
@@ -279,41 +281,52 @@ export default function EscrowDocket() {
           )}
 
           <div className="flex flex-wrap gap-4">
-            {isOpen && (
+            {isWrongChain ? (
               <button 
-                onClick={handleResolve}
-                disabled={!!actionType}
-                className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                onClick={() => switchChain({ chainId: 61999 })}
+                className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors"
               >
-                {actionType === "resolve" ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full"></span>
-                    Reaching consensus (1-2 mins)...
-                  </span>
-                ) : (
-                  "Resolve Claim"
+                Switch to GenLayer StudioNet
+              </button>
+            ) : (
+              <>
+                {isOpen && (
+                  <button 
+                    onClick={handleResolve}
+                    disabled={!!actionType}
+                    className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  >
+                    {actionType === "resolve" ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full"></span>
+                        Reaching consensus (1-2 mins)...
+                      </span>
+                    ) : (
+                      "Resolve Claim"
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
-            
-            {isOpen && isFunder && (
-              <button 
-                onClick={handleCancel}
-                disabled={!!actionType}
-                className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50"
-              >
-                {actionType === "cancel" ? "Pending..." : "Cancel Escrow"}
-              </button>
-            )}
+                
+                {isOpen && isFunder && (
+                  <button 
+                    onClick={handleCancel}
+                    disabled={!!actionType}
+                    className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50"
+                  >
+                    {actionType === "cancel" ? "Pending..." : "Cancel Escrow"}
+                  </button>
+                )}
 
-            {pendingBalance > BigInt(0) && (
-              <button 
-                onClick={handleWithdraw}
-                disabled={!!actionType}
-                className="border border-lines text-gray-300 font-bold uppercase tracking-wider px-6 py-3 hover:bg-lines transition-colors disabled:opacity-50 ml-auto"
-              >
-                {actionType === "withdraw" ? "Pending..." : `Withdraw ${formatEther(pendingBalance)} GEN`}
-              </button>
+                {pendingBalance > BigInt(0) && (
+                  <button 
+                    onClick={handleWithdraw}
+                    disabled={!!actionType}
+                    className="border border-lines text-gray-300 font-bold uppercase tracking-wider px-6 py-3 hover:bg-lines transition-colors disabled:opacity-50 ml-auto"
+                  >
+                    {actionType === "withdraw" ? "Pending..." : `Withdraw ${formatEther(pendingBalance)} GEN`}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </section>
