@@ -19,7 +19,9 @@
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(circle at 50% -20%, #1c1c24, var(--background));
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
+  min-height: 100vh;
 }

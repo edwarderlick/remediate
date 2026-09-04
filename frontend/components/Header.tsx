@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount, useConnect, useDisconnect, useChainId } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useChainId, useBalance } from "wagmi";
+import { formatEther } from "viem";
 import { genLayerStudioNet } from "@/lib/wagmiConfig";
 import { useEffect, useState } from "react";
 import { Unplug, Zap } from "lucide-react";
@@ -10,8 +11,10 @@ export default function Header() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+  const { data: balanceData } = useBalance({ address });
   const chainId = useChainId();
   const [mounted, setMounted] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 0);
@@ -43,15 +46,32 @@ export default function Header() {
         <div className="flex items-center gap-4">
           {mounted && isConnected ? (
             <div className="flex items-center gap-3">
-              <span className="font-mono text-xs bg-background border border-lines px-3 py-1 rounded">
-                {address?.slice(0, 6)}...{address?.slice(-4)}
-              </span>
-              <button 
-                onClick={() => disconnect()}
-                className="text-xs font-mono text-gray-500 hover:text-white"
-              >
-                DISCONNECT
-              </button>
+              {balanceData && (
+                <span className="font-mono text-xs text-white px-3 py-1 bg-surface border border-lines backdrop-blur-md">
+                  {parseFloat(formatEther(balanceData.value)).toFixed(4)} GEN
+                </span>
+              )}
+              <div className="relative">
+                <button 
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="font-mono text-xs bg-white text-black px-4 py-1 hover:bg-gray-200 transition-colors uppercase font-bold flex items-center gap-2"
+                >
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </button>
+                {dropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-background border border-white/10 backdrop-blur-md shadow-xl p-2 flex flex-col gap-1 z-50">
+                    <button 
+                      onClick={() => {
+                        disconnect();
+                        setDropdownOpen(false);
+                      }}
+                      className="text-xs font-mono text-state-fail hover:bg-state-fail/10 p-2 text-left uppercase w-full transition-colors"
+                    >
+                      Disconnect Wallet
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             mounted && (

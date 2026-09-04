@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useGenLayer } from "@/hooks/useGenLayer";
 import { CONTRACT_ADDRESS } from "@/lib/genlayer";
@@ -19,10 +19,10 @@ export default function EscrowDocket() {
   const [claim, setClaim] = useState<any>(null);
   const [pendingBalance, setPendingBalance] = useState<bigint>(BigInt(0));
   const [isLoading, setIsLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [actionType, setActionType] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const fetchClaim = async () => {
+  const fetchClaim = useCallback(async () => {
     if (!client) return;
     setIsLoading(true);
     try {
@@ -35,8 +35,8 @@ export default function EscrowDocket() {
       if (typeof result === "string") {
         try {
           parsed = JSON.parse(result);
-        } catch (e) {
-          console.error("Failed to parse claim JSON", e);
+        } catch (err) {
+          console.error("Failed to parse claim JSON", err);
         }
       }
       console.log("Raw claim data:", parsed);
@@ -59,7 +59,7 @@ export default function EscrowDocket() {
             const wParsed = JSON.parse(wResult);
             if (wParsed.amount) setPendingBalance(BigInt(wParsed.amount));
           }
-        } catch (e) {
+        } catch (err) {
           // Silent catch in case method is not deployed on this contract version
         }
       }
@@ -68,19 +68,18 @@ export default function EscrowDocket() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [client, id, address]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     if (isReady && client) {
       const t = setTimeout(fetchClaim, 0);
       return () => clearTimeout(t);
     }
-  }, [isReady, client, id, address]);
+  }, [isReady, client, fetchClaim]);
 
   const handleError = (err: any) => {
     if (err?.message?.includes("User rejected") || err?.name === "UserRejectedRequestError") {
-      setMessage("Transaction was canceled by the user.");
+      setMessage(""); // cleanly dismiss if user rejected in wallet
     } else {
       setMessage(`Error: ${err.message || "Transaction failed"}`);
     }
@@ -88,7 +87,7 @@ export default function EscrowDocket() {
 
   const handleResolve = async () => {
     if (!client) return;
-    setActionLoading(true);
+    setActionType("resolve");
     setMessage("Resolving claim... This may take up to 20 seconds for consensus.");
     try {
       const hash = await client.writeContract({
@@ -97,19 +96,19 @@ export default function EscrowDocket() {
         args: [id as string]
       });
       setMessage(`Resolve TX Submitted: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash });
+      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
       setMessage(`Resolve TX Finalized!`);
       fetchClaim();
     } catch (err: any) {
       handleError(err);
     } finally {
-      setActionLoading(false);
+      setActionType(null);
     }
   };
 
   const handleCancel = async () => {
     if (!client) return;
-    setActionLoading(true);
+    setActionType("cancel");
     setMessage("Canceling claim...");
     try {
       const hash = await client.writeContract({
@@ -118,19 +117,19 @@ export default function EscrowDocket() {
         args: [id as string]
       });
       setMessage(`Cancel TX Submitted: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash });
+      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
       setMessage(`Cancel TX Finalized!`);
       fetchClaim();
     } catch (err: any) {
       handleError(err);
     } finally {
-      setActionLoading(false);
+      setActionType(null);
     }
   };
 
   const handleWithdraw = async () => {
     if (!client) return;
-    setActionLoading(true);
+    setActionType("withdraw");
     setMessage("Withdrawing credits...");
     try {
       const hash = await client.writeContract({
@@ -139,13 +138,13 @@ export default function EscrowDocket() {
         args: []
       });
       setMessage(`Withdraw TX Submitted: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash });
+      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
       setMessage(`Withdraw TX Finalized!`);
       setPendingBalance(BigInt(0));
     } catch (err: any) {
       handleError(err);
     } finally {
-      setActionLoading(false);
+      setActionType(null);
     }
   };
 
@@ -182,7 +181,7 @@ export default function EscrowDocket() {
         <ArrowLeft className="w-4 h-4" /> BACK TO CLAIMS
       </Link>
 
-      <div className="border border-lines bg-surface p-8">
+      <div className="border border-white/10 bg-surface/50 backdrop-blur-md p-8 shadow-2xl">
         <div className="flex justify-between items-start mb-8 border-b border-lines pb-6">
           <div>
             <h1 className="text-3xl font-bold font-mono tracking-tight mb-2 text-white">Docket #{String(id).slice(0, 8)}</h1>
@@ -229,14 +228,14 @@ export default function EscrowDocket() {
             <Link2 className="w-4 h-4" /> Evidence
           </h2>
           <div className="space-y-2">
-            <a href={osvUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-4 border border-lines bg-background hover:border-gray-500 transition-colors group">
+            <a href={osvUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-4 border border-white/5 bg-background/50 hover:bg-white/5 backdrop-blur-sm transition-colors group">
               <div>
                 <p className="text-white font-mono text-sm mb-1">{claim?.advisory_id || "Advisory"} Data</p>
                 <p className="text-xs text-state-exact font-mono uppercase tracking-widest">Pinned public JSON</p>
               </div>
               <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-white" />
             </a>
-            <a href={patchUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-4 border border-lines bg-background hover:border-gray-500 transition-colors group">
+            <a href={patchUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-4 border border-white/5 bg-background/50 hover:bg-white/5 backdrop-blur-sm transition-colors group">
               <div>
                 <p className="text-white font-mono text-sm mb-1">Commit Patch File</p>
                 <p className="text-xs text-state-exact font-mono uppercase tracking-widest">Pinned public TEXT</p>
@@ -252,7 +251,7 @@ export default function EscrowDocket() {
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
               <Terminal className="w-4 h-4" /> Terminal Result
             </h2>
-            <div className="border border-lines bg-background p-4 font-mono text-sm space-y-2">
+            <div className="border border-white/10 bg-surface/60 backdrop-blur-sm p-4 font-mono text-sm space-y-2 animate-in slide-in-from-bottom-4 fade-in duration-500">
               <div className="flex justify-between"><span className="text-gray-500">STATUS:</span> <span className="text-white">{stateName}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">ADVISORY:</span> <span className="text-white">{claim?.advisory_id}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">COMMIT:</span> <span className="text-white break-all">{claim?.commit_sha}</span></div>
@@ -283,30 +282,37 @@ export default function EscrowDocket() {
             {isOpen && (
               <button 
                 onClick={handleResolve}
-                disabled={actionLoading}
+                disabled={!!actionType}
                 className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
-                {actionLoading ? "Pending..." : "Resolve Claim"}
+                {actionType === "resolve" ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full"></span>
+                    Reaching consensus (1-2 mins)...
+                  </span>
+                ) : (
+                  "Resolve Claim"
+                )}
               </button>
             )}
             
             {isOpen && isFunder && (
               <button 
                 onClick={handleCancel}
-                disabled={actionLoading}
+                disabled={!!actionType}
                 className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50"
               >
-                {actionLoading ? "Pending..." : "Cancel Escrow"}
+                {actionType === "cancel" ? "Pending..." : "Cancel Escrow"}
               </button>
             )}
 
             {pendingBalance > BigInt(0) && (
               <button 
                 onClick={handleWithdraw}
-                disabled={actionLoading}
+                disabled={!!actionType}
                 className="border border-lines text-gray-300 font-bold uppercase tracking-wider px-6 py-3 hover:bg-lines transition-colors disabled:opacity-50 ml-auto"
               >
-                {actionLoading ? "Pending..." : `Withdraw ${formatEther(pendingBalance)} GEN`}
+                {actionType === "withdraw" ? "Pending..." : `Withdraw ${formatEther(pendingBalance)} GEN`}
               </button>
             )}
           </div>

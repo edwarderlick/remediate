@@ -14,6 +14,8 @@ export default function BrowseClaims() {
   const [claims, setClaims] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<string>("ALL");
+  const [offset, setOffset] = useState(0);
+  const limit = 20;
 
   useEffect(() => {
     if (!isReady || !client) return;
@@ -23,8 +25,8 @@ export default function BrowseClaims() {
       try {
         const result = await client.readContract({
           address: CONTRACT_ADDRESS,
-          functionName: "get_all_claims",
-          args: []
+          functionName: "get_claims_paginated",
+          args: [offset, limit]
         });
         let parsedResult = result;
         if (typeof result === "string") {
@@ -47,7 +49,7 @@ export default function BrowseClaims() {
     };
 
     fetchClaims();
-  }, [isReady, client]);
+  }, [isReady, client, offset]);
 
   if (isChecking) return <div className="p-12 text-center text-gray-400 font-mono">Connecting...</div>;
   if (!isReady) {
@@ -95,7 +97,7 @@ export default function BrowseClaims() {
       </div>
 
       {isLoading ? (
-        <div className="p-12 text-center text-gray-400 font-mono border border-lines bg-surface/50">Fetching claims...</div>
+        <div className="p-12 text-center text-gray-400 font-mono border border-white/10 bg-surface/50 backdrop-blur-md">Fetching claims...</div>
       ) : filtered.length === 0 ? (
         <EmptyState title="No active escrows" description="No claims match your filters." />
       ) : (
@@ -106,7 +108,7 @@ export default function BrowseClaims() {
               <Link 
                 key={claim.id} 
                 href={`/claims/${claim.id}`}
-                className="border border-lines bg-surface p-6 hover:border-gray-400 transition-colors group flex flex-col justify-between"
+                className="border border-white/10 bg-surface/50 backdrop-blur-md p-6 hover:border-gray-400 transition-colors group flex flex-col justify-between shadow-xl"
               >
                 <div>
                   <div className="flex justify-between items-start mb-4">
@@ -123,6 +125,28 @@ export default function BrowseClaims() {
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {!isLoading && (
+        <div className="mt-8 flex justify-between items-center border-t border-lines pt-4">
+          <button 
+            onClick={() => setOffset(Math.max(0, offset - limit))}
+            disabled={offset === 0}
+            className="font-mono text-sm uppercase font-bold text-gray-400 hover:text-white disabled:opacity-50"
+          >
+            ← Previous
+          </button>
+          <span className="font-mono text-sm text-gray-500">
+            Showing {offset + 1} - {offset + filtered.length}
+          </span>
+          <button 
+            onClick={() => setOffset(offset + limit)}
+            disabled={claims.length < limit}
+            className="font-mono text-sm uppercase font-bold text-gray-400 hover:text-white disabled:opacity-50"
+          >
+            Next →
+          </button>
         </div>
       )}
     </div>

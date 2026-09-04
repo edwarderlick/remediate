@@ -43,7 +43,7 @@ export default function CreateEscrow() {
       });
       
       setSuccess(`Escrow created! TX Hash: ${hash}. Waiting for consensus...`);
-      await client.waitForTransactionReceipt({ hash });
+      await client.waitForTransactionReceipt({ hash, timeout: 180000 });
       
       setAdvisoryId("");
       setRepo("");
@@ -56,7 +56,11 @@ export default function CreateEscrow() {
       }, 500);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Transaction failed");
+      if (err?.message?.includes("User rejected") || err?.name === "UserRejectedRequestError") {
+        setError(""); // Dismiss error if user manually rejected
+      } else {
+        setError(err.message || "Transaction failed");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +89,7 @@ export default function CreateEscrow() {
       <h1 className="text-3xl font-bold mb-2">Create Escrow</h1>
       <p className="text-gray-400 mb-8">Lock test GEN against a vulnerability patch.</p>
 
-      <form onSubmit={handleSubmit} className="border border-lines bg-surface p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="border border-white/10 bg-surface/50 backdrop-blur-md p-6 space-y-6 shadow-2xl">
         {error && <div className="bg-state-fail/10 border border-state-fail text-state-fail p-3 text-sm font-mono">{error}</div>}
         {success && <div className="bg-state-exact/10 border border-state-exact text-state-exact p-3 text-sm font-mono">{success}</div>}
 

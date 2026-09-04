@@ -45,7 +45,12 @@ export function StatusBadge({ state, className }: StatusBadgeProps) {
   const { label, icon: Icon, colors } = config[state] || config.OPEN;
 
   return (
-    <div className={cn("inline-flex items-center gap-1.5 px-2 py-1 border text-xs font-bold font-mono uppercase tracking-wider", colors, className)}>
+    <div className={cn(
+      "inline-flex items-center gap-1.5 px-2 py-1 border text-xs font-bold font-mono uppercase tracking-wider transition-all duration-300 ease-in-out",
+      state === "OPEN" ? "animate-pulse shadow-[0_0_10px_rgba(255,193,7,0.3)]" : "",
+      colors, 
+      className
+    )}>
       <Icon className="w-3.5 h-3.5" />
       {label}
     </div>
