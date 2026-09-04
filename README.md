@@ -6,7 +6,7 @@
 
 ## Live Demo
 
-**Access the live application here:** [https://frontend-amber-alpha-67p5ms3b83.vercel.app](https://frontend-amber-alpha-67p5ms3b83.vercel.app)
+**Access the live application here:** [https://remediate-five.vercel.app/](https://remediate-five.vercel.app/)
 
 ## Architecture
 
@@ -58,7 +58,7 @@ If the deterministic OSV match fails (due to a zero-day or pending disclosure), 
 
 Remediate is currently live on GenLayer StudioNet.
 
-**Contract Address:** `0x236B8f9316d5331D8AEA4885F9c906251EC9E5cc`
+**Contract Address:** `0x9Ff8C8946eCdA54525837Ec905f86DeC9466a77a`
 
 An exhaustive suite of real-world test cases proving the fail-closed nature of the state machine (triggering `FIXED_EXACT`, `NOT_FIXED`, and `INSUFFICIENT` states) is available in the [`evidence/studionet.json`](evidence/studionet.json) proof pack.
 
