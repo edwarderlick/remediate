@@ -1,28 +1,38 @@
 {
-  "contractAddress": "0x236B8f9316d5331D8AEA4885F9c906251EC9E5cc",
+  "contractAddress": "0x3c3c3b7C762B145b3b8b88d9E3Ff02207Fc4A0a0",
   "network": "GenLayer StudioNet",
+  "chainId": 61999,
   "tests": [
     {
       "path": "FIXED_EXACT",
-      "createTx": "0xe8f030f44c214385d4310ff76a33c2702b9aa15f46a0642407d6955d1ba7765a",
-      "resolveTx": "0xd6e97a66755ecd5bddb9bfea16f58d2ed118b2668eaa9530dc1ce1e096847879",
-      "claimId": "claim-1"
-    },
-    {
-      "path": "NOT_FIXED",
-      "createTx": "0x50ebf28e21a778ca39c9ca4b2ff7d046abd580df815542b3f1c76ffff51a87b0",
-      "resolveTx": "0x3605c9c7e7097c8e7f190c8159b7a3e95b421568cb81a53331faa55d74d52e51",
-      "claimId": "claim-2"
+      "advisoryId": "OSV-2017-1",
+      "repo": "curl/curl",
+      "commitSha": "544bfdebea2a9e8be1c01fc7954cd49638fe2803",
+      "createTx": "0xdc5a6a5d33a8e5c6e3611d626d7d2e8d7894704f64c2f2e854014b69edfa50fe",
+      "resolveTx": "0x05b485473a9d8e365f68a4b1e97bb566cd0294d48fd4be369cc7033bb744aa57",
+      "claimId": "claim-0xfceda375aedb6bab",
+      "result": "Recipient paid 0.02 GEN. Verified commit SHA strictly in OSV 'fixed' events."
     },
     {
       "path": "INSUFFICIENT",
-      "createTx": "0xd255c599b16e39144e66d559fd5fdcc98a96abecd37539a74c4862c27df6945e",
-      "resolveTx": "0x10cec6da9a7c45c9d21d0bb829eed29801011187da54194c1d9cb6fecbfb2cea",
-      "claimId": "claim-3"
+      "advisoryId": "GHSA-42x2-265f-wpxc",
+      "repo": "facebook/lexical",
+      "commitSha": "93998b31a3962b9f368e7f105bbbbbbbbbbbbbbb",
+      "createTx": "0x57da0410e967575a18d802abb371873911c8fe9abf29b9181425a132e1fd928e",
+      "resolveTx": "0x6cfe87b8ab53ec0c06219bd7ed049c2f1a17e53ab56330cebece766cf4402df4",
+      "claimId": "claim-0xa12fc87911613fc8",
+      "result": "Funder refunded 0.01 GEN. 404 from OSV correctly triggered fail-closed refund."
     },
     {
-      "path": "REJECTED_CREATE",
-      "createTx": "0xe6e3b2f3aaeb222de0895c16c9d4229950df11ab5d3a21283d49f81e225fe1bb"
+      "path": "CANCELED_AND_WITHDRAWN",
+      "advisoryId": "GHSA-test-escrow-01",
+      "repo": "owner/repo",
+      "commitSha": "2222222222222222222222222222222222222222",
+      "createTx": "0x410470f27b34773513681ed41f3a4c677729f7da657e8b05b0df585f901afeef",
+      "cancelTx": "0xc655b8160684085a68f32449e1a7c1f03b550671bcde12fde6fd84e10fd2b308",
+      "withdrawTx": "0xc48b2bfc6922b0d24c4e65fab2a36f585cd89f6f34594f5fa4bab78f84293c1f",
+      "claimId": "claim-0x7637234769da68e4",
+      "result": "Funder canceled and successfully withdrew 0.05 GEN via pull-payment pattern."
     }
   ]
 }

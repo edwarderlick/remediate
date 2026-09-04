@@ -57,12 +57,18 @@ export default function EscrowDocket() {
             functionName: "get_pending_withdrawal",
             args: [address]
           });
-          if (typeof wResult === "string") {
-            const wParsed = JSON.parse(wResult);
-            if (wParsed.amount) setPendingBalance(BigInt(wParsed.amount));
+          if (typeof wResult === "number" || typeof wResult === "bigint") {
+            setPendingBalance(BigInt(wResult));
+          } else if (typeof wResult === "string") {
+            try {
+              const wParsed = JSON.parse(wResult);
+              setPendingBalance(BigInt(wParsed.amount ?? wParsed));
+            } catch {
+              setPendingBalance(BigInt(wResult));
+            }
           }
         } catch (err) {
-          // Silent catch in case method is not deployed on this contract version
+          console.warn("Could not read pending withdrawal", err);
         }
       }
     } catch (err) {

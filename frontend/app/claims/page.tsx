@@ -68,16 +68,9 @@ export default function BrowseClaims() {
     );
   }
 
-  // ContractState enum in python: OPEN=1, FIXED_EXACT=2, FIXED_EQUIVALENT=3, NOT_FIXED=4, INSUFFICIENT=5, CANCELED=6
-  // But wait, the python code says `State.OPEN.value` (1). Wait! In `remediate.py`, does it store the value (1) or name ("OPEN")?
-  // Let's assume it stores the value (integer). We need a map.
-  const stateMap: Record<number, string> = {
-    1: "OPEN", 2: "FIXED_EXACT", 3: "FIXED_EQUIVALENT", 4: "NOT_FIXED", 5: "INSUFFICIENT", 6: "CANCELED"
-  };
-
   const filtered = filter === "ALL" 
     ? claims 
-    : claims.filter(c => stateMap[c.state] === filter || c.state === filter);
+    : claims.filter(c => c.state === filter);
 
   return (
     <div className="max-w-5xl mx-auto py-12">
@@ -105,7 +98,7 @@ export default function BrowseClaims() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map(claim => {
-            const stateName = typeof claim.state === "number" ? stateMap[claim.state] : claim.state;
+            const stateName = claim.state;
             return (
               <Link 
                 key={claim.id} 
