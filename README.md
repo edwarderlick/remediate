@@ -4,6 +4,10 @@
 
 ![GenLayer StudioNet](https://img.shields.io/badge/GenLayer-StudioNet-blue?style=for-the-badge) ![Status](https://img.shields.io/badge/Status-Live-success?style=for-the-badge)
 
+## Live Demo
+
+**Access the live application here:** [https://frontend-amber-alpha-67p5ms3b83.vercel.app](https://frontend-amber-alpha-67p5ms3b83.vercel.app)
+
 ## Architecture
 
 Remediate's core innovation is its strict **fail-closed state machine**. Instead of relying purely on an open-ended LLM "court" to decide if a bug was fixed, it first attempts a **deterministic byte-match** against the global OSV (Open Source Vulnerability) database.
