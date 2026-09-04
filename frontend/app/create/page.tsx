@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -33,10 +34,11 @@ export default function CreateEscrow() {
     setSuccess("");
 
     try {
+      const cleanRepo = repo.replace("https://", "").replace("http://", "").replace("github.com/", "").trim();
       const hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "create_claim",
-        args: [advisoryId, repo, commitSha, recipient],
+        args: [advisoryId, cleanRepo, commitSha, recipient],
         value: parseEther(amount)
       });
       

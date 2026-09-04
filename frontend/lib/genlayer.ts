@@ -5,8 +5,6 @@ export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x
 
 export function getGenLayerClient(account?: `0x${string}`) {
   // Use window.ethereum if available, otherwise just init without account for read-only
-  const provider = typeof window !== "undefined" && (window as any).ethereum;
-  
   return createClient({
     chain: studionet,
     account: account,

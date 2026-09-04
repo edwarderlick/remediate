@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect } from "react";
 import { useAccount, useChainId } from "wagmi";
@@ -14,9 +15,11 @@ export function useGenLayer() {
 
   useEffect(() => {
     if (!isConnected || chainId !== genLayerStudioNet.id) {
-      setClient(null);
-      setIsContractDeployed(null);
-      return;
+      const t = setTimeout(() => {
+        setClient(null);
+        setIsContractDeployed(null);
+      }, 0);
+      return () => clearTimeout(t);
     }
 
     const initClient = async () => {

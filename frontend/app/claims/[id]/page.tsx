@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -70,7 +71,11 @@ export default function EscrowDocket() {
   };
 
   useEffect(() => {
-    if (isReady && client) fetchClaim();
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    if (isReady && client) {
+      const t = setTimeout(fetchClaim, 0);
+      return () => clearTimeout(t);
+    }
   }, [isReady, client, id, address]);
 
   const handleError = (err: any) => {

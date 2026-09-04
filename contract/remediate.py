@@ -75,6 +75,7 @@ class RemediateContract(gl.Contract):
 
     @gl.public.view
     def get_claim(self, claim_id: str) -> str:
+        claim_id = str(claim_id)
         v = self.claims.get(claim_id)
         if not v:
             return "{}"
@@ -100,7 +101,7 @@ class RemediateContract(gl.Contract):
                 self._refund(sender, u256(value))
                 return json.dumps({"ok": False, "reason": "Invalid commit SHA format"})
 
-            claim_id = f"claim-{self.next_claim_id}"
+            claim_id = str(self.next_claim_id)
             self.next_claim_id += u256(1)
 
             self.claims[claim_id] = Claim(
@@ -119,6 +120,7 @@ class RemediateContract(gl.Contract):
 
     @gl.public.write
     def resolve(self, claim_id: str) -> str:
+        claim_id = str(claim_id)
         if claim_id not in self.claims:
             return json.dumps({"ok": False, "reason": "Claim not found"})
             
@@ -227,6 +229,7 @@ class RemediateContract(gl.Contract):
 
     @gl.public.write
     def cancel(self, claim_id: str) -> str:
+        claim_id = str(claim_id)
         if claim_id not in self.claims:
             return json.dumps({"ok": False, "reason": "Claim not found"})
         claim = self.claims[claim_id]
