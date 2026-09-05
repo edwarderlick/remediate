@@ -35,7 +35,7 @@ class Claim:
 
 class RemediateContract(gl.Contract):
     claims: TreeMap[str, Claim]
-    credits: TreeMap[Address, u256]
+    credits: TreeMap[str, u256]
     claim_list: DynArray[str]
     withdrawing: bool
 
