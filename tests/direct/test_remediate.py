@@ -26,7 +26,7 @@ def test_concurrent_claims_return_distinct_deterministic_ids(direct_vm, direct_d
             f"GHSA-test-{i}",
             f"owner/repo-{i}",
             sha,
-            str(direct_alice)
+            "0x" + direct_alice.hex()
         )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
@@ -38,7 +38,7 @@ def test_concurrent_claims_return_distinct_deterministic_ids(direct_vm, direct_d
         assert cid.startswith("claim-0x")
         claim = contract.get_claim(cid)
         assert claim["state"] == "OPEN"
-        assert claim["amount"] == 10**16
+        assert claim["amount"] == str(10**16)
 
 
 def test_invalid_commit_sha_reverts(direct_vm, direct_deploy, direct_alice):
@@ -47,7 +47,7 @@ def test_invalid_commit_sha_reverts(direct_vm, direct_deploy, direct_alice):
     contract = direct_deploy("contract/remediate.py")
 
     with pytest.raises(Exception, match="Invalid commit SHA"):
-        contract.create_claim("GHSA-1234", "owner/repo", "invalid-short-sha", str(direct_alice))
+        contract.create_claim("GHSA-1234", "owner/repo", "invalid-short-sha", "0x" + direct_alice.hex())
 
 
 def test_low_deposit_reverts(direct_vm, direct_deploy, direct_alice):
@@ -60,7 +60,7 @@ def test_low_deposit_reverts(direct_vm, direct_deploy, direct_alice):
             "GHSA-1234",
             "owner/repo",
             "2222222222222222222222222222222222222222",
-            str(direct_alice)
+            "0x" + direct_alice.hex()
         )
 
 
@@ -73,7 +73,7 @@ def test_cancel_credits_funder_only(direct_vm, direct_deploy, direct_alice, dire
         "GHSA-cancel-test",
         "owner/repo",
         "2222222222222222222222222222222222222222",
-        str(direct_bob)
+        "0x" + direct_bob.hex()
     )
 
     # Bob cannot cancel
@@ -87,7 +87,7 @@ def test_cancel_credits_funder_only(direct_vm, direct_deploy, direct_alice, dire
 
     claim = contract.get_claim(cid)
     assert claim["state"] == "CANCELED"
-    assert contract.get_credit(str(direct_alice)) == 10**16
+    assert contract.get_credit("0x" + direct_alice.hex()) == 10**16
 
 
 def test_withdraw_with_no_credits_reverts(direct_vm, direct_deploy, direct_alice):
