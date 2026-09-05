@@ -121,8 +121,17 @@ export default function EscrowDocket() {
       }
       if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Resolve TX Finalized!`);
+      const updatedClaim = await client.readContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "get_claim",
+        args: [id as string]
+      });
+      let parsed = updatedClaim;
+      if (typeof updatedClaim === "string") {
+        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
+      }
+      setClaim(parsed);
       router.refresh();
-      fetchClaim();
     } catch (err: any) {
       handleError(err);
     } finally {
@@ -156,8 +165,17 @@ export default function EscrowDocket() {
       }
       if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Cancel TX Finalized!`);
+      const updatedClaim = await client.readContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "get_claim",
+        args: [id as string]
+      });
+      let parsed = updatedClaim;
+      if (typeof updatedClaim === "string") {
+        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
+      }
+      setClaim(parsed);
       router.refresh();
-      fetchClaim();
     } catch (err: any) {
       handleError(err);
     } finally {
