@@ -10,7 +10,7 @@ Funders lock native GEN against a specific repository and vulnerability advisory
 
 ### 🌐 Live Protocol Info
 - **Live App:** [https://remediate-five.vercel.app/](https://remediate-five.vercel.app/)
-- **StudioNet Contract Address:** `0x1e02531a3151d228D1e3e382b5500068305021FA`
+- **StudioNet Contract Address:** `0xc8F5402e9Db1184435487046dd349070a330B54b`
 - **Chain ID:** `61999`
 - **RPC Endpoint:** `https://studio.genlayer.com/api`
 
@@ -73,7 +73,7 @@ Remediate was engineered directly against historical steward rejections on previ
 ### 4. Sybil Court Compliance (UI & Contract Parity)
 - **No Phantom Methods:** The frontend interacts strictly with implemented methods (`create_claim`, `resolve`, `cancel`, `withdraw`, `get_claim`, `get_credit`, `get_pending_withdrawal`).
 - **Chain Enforcement:** StudioNet (`Chain ID 61999`) is strictly enforced across Wagmi connectors, blocking misdirected transactions.
-- **Synchronized Deployments:** The live Vercel application, `evidence/studionet.json`, and this repository all target the active contract address (`0x1e02531a3151d228D1e3e382b5500068305021FA`).
+- **Synchronized Deployments:** The live Vercel application, `evidence/studionet.json`, and this repository all target the active contract address (`0xc8F5402e9Db1184435487046dd349070a330B54b`).
 
 ---
 

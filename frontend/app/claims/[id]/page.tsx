@@ -110,6 +110,10 @@ export default function EscrowDocket() {
       for (let i = 0; i < 60; i++) {
         const tx = await client.getTransaction({ hash });
         if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
+          if (revertReason) {
+            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
+          }
           finalized = true;
           break;
         }
@@ -141,6 +145,10 @@ export default function EscrowDocket() {
       for (let i = 0; i < 60; i++) {
         const tx = await client.getTransaction({ hash });
         if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
+          if (revertReason) {
+            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
+          }
           finalized = true;
           break;
         }
@@ -172,6 +180,10 @@ export default function EscrowDocket() {
       for (let i = 0; i < 60; i++) {
         const tx = await client.getTransaction({ hash });
         if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
+          if (revertReason) {
+            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
+          }
           finalized = true;
           break;
         }

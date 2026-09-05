@@ -303,17 +303,21 @@ INSTRUCTIONS:
                 }, sort_keys=True, separators=(",", ":"))
 
         # Multi-node consensus strictly enforced across validator committee
-        raw_verdict = gl.eq_principle.strict_eq(evaluate_consensus)
-        if isinstance(raw_verdict, str):
-            verdict = json.loads(raw_verdict)
-        else:
-            verdict = raw_verdict
+        try:
+            raw_verdict = gl.eq_principle.strict_eq(evaluate_consensus)
+            if isinstance(raw_verdict, str):
+                verdict = json.loads(raw_verdict)
+            else:
+                verdict = raw_verdict
 
-        status = str(verdict.get("status", "INSUFFICIENT"))
-        reason = str(verdict.get("reason", ""))
+            status = str(verdict.get("status", "INSUFFICIENT"))
+            reason = str(verdict.get("reason", ""))
 
-        if status not in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT, STATE_NOT_FIXED, STATE_INSUFFICIENT):
+            if status not in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT, STATE_NOT_FIXED, STATE_INSUFFICIENT):
+                status = STATE_INSUFFICIENT
+        except Exception as e:
             status = STATE_INSUFFICIENT
+            reason = f"VM Execution Crash: {str(e)}"
 
         # ── 3. STATE UPDATES & SETTLEMENT ─────────────────────────────────
         claim.state = status

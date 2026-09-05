@@ -10,6 +10,8 @@ import Link from "next/link";
 import { formatEther } from "viem";
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 export default function BrowseClaims() {
   const { isReady, client, isChecking, isContractDeployed } = useGenLayer();
