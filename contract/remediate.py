@@ -118,8 +118,8 @@ class RemediateContract(gl.Contract):
         if not SHA_RE.match(sha_clean):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid commit SHA: must be 40 hex characters")
 
-        repo_clean = self._normalize_repo(owner_repo)
-        adv_clean = (advisory_id or "").strip().upper()
+        repo_clean = self._normalize_repo(owner_repo[:200])
+        adv_clean = (advisory_id[:100] or "").strip().upper()
         if len(adv_clean) < 5:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid advisory ID")
 
@@ -363,7 +363,7 @@ INSTRUCTIONS:
             "commit_sha": v.commit_sha,
             "recipient": str(v.recipient),
             "funder": str(v.funder),
-            "amount": int(v.amount),
+            "amount": str(int(v.amount)),
             "state": v.state,
             "rationale": v.rationale,
             "created_at": getattr(v, "created_at", ""),
@@ -381,7 +381,7 @@ INSTRUCTIONS:
                     "commit_sha": v.commit_sha,
                     "recipient": str(v.recipient),
                     "funder": str(v.funder),
-                    "amount": int(v.amount),
+                    "amount": str(int(v.amount)),
                     "state": v.state,
                     "rationale": v.rationale,
                     "created_at": getattr(v, "created_at", ""),
@@ -402,7 +402,7 @@ INSTRUCTIONS:
                     "commit_sha": v.commit_sha,
                     "recipient": str(v.recipient),
                     "funder": str(v.funder),
-                    "amount": int(v.amount),
+                    "amount": str(int(v.amount)),
                     "state": v.state,
                     "rationale": v.rationale,
                     "created_at": getattr(v, "created_at", ""),

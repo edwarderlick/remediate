@@ -96,7 +96,7 @@ export default function EscrowDocket() {
   };
 
   const handleResolve = async () => {
-    if (!client) return;
+    if (!client || actionType) return;
     setActionType("resolve");
     setMessage("Resolving claim... This may take up to 20 seconds for consensus.");
     try {
@@ -117,6 +117,7 @@ export default function EscrowDocket() {
       }
       if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Resolve TX Finalized!`);
+      router.refresh();
       fetchClaim();
     } catch (err: any) {
       handleError(err);
@@ -126,7 +127,7 @@ export default function EscrowDocket() {
   };
 
   const handleCancel = async () => {
-    if (!client) return;
+    if (!client || actionType) return;
     setActionType("cancel");
     setMessage("Canceling claim...");
     try {
@@ -147,6 +148,7 @@ export default function EscrowDocket() {
       }
       if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Cancel TX Finalized!`);
+      router.refresh();
       fetchClaim();
     } catch (err: any) {
       handleError(err);
@@ -156,7 +158,7 @@ export default function EscrowDocket() {
   };
 
   const handleWithdraw = async () => {
-    if (!client) return;
+    if (!client || actionType) return;
     setActionType("withdraw");
     setMessage("Withdrawing credits...");
     try {

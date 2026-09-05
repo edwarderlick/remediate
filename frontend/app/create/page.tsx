@@ -31,7 +31,7 @@ export default function CreateEscrow() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid || !client) return;
+    if (isLoading || !isFormValid || !client) return;
 
     setIsLoading(true);
     setError("");
@@ -126,6 +126,7 @@ export default function CreateEscrow() {
             value={repo}
             onChange={e => setRepo(e.target.value)}
             placeholder="github.com/owner/repo"
+            maxLength={200}
             className="w-full bg-background border border-lines p-3 font-mono text-white focus:outline-none focus:border-white transition-colors"
           />
         </div>
@@ -137,6 +138,7 @@ export default function CreateEscrow() {
             value={commitSha}
             onChange={e => setCommitSha(e.target.value)}
             placeholder="40-character hex string"
+            maxLength={40}
             className="w-full bg-background border border-lines p-3 font-mono text-white focus:outline-none focus:border-white transition-colors"
           />
           {commitSha && !isShaValid && <p className="text-state-fail text-xs mt-1">Must be exactly 40 hex characters.</p>}
