@@ -46,8 +46,9 @@ class RemediateContract(gl.Contract):
         """Internal pull-payment balance allocation."""
         if amount == u256(0):
             return
-        curr = self.credits.get(to, u256(0))
-        self.credits[to] = curr + amount
+        addr_str = str(to).lower()
+        curr = self.credits.get(addr_str, u256(0))
+        self.credits[addr_str] = curr + amount
 
     def _normalize_repo(self, repo: str) -> str:
         cleaned = (repo or "").strip().lower()
@@ -73,12 +74,13 @@ class RemediateContract(gl.Contract):
         self.withdrawing = True
 
         caller = gl.message.sender_address
-        amount = self.credits.get(caller, u256(0))
+        caller_str = str(caller).lower()
+        amount = self.credits.get(caller_str, u256(0))
         if amount == u256(0):
             self.withdrawing = False
             raise gl.vm.UserError(f"{ERROR_EXPECTED} No credits available to withdraw")
 
-        self.credits[caller] = u256(0)
+        self.credits[caller_str] = u256(0)
 
         # External transfer. If this fails, entire call reverts, restoring self.credits[caller]!
         try:
@@ -87,14 +89,14 @@ class RemediateContract(gl.Contract):
             self.withdrawing = False
 
     @gl.public.view
-    def get_credit(self, account: str) -> int:
-        addr = Address(account)
-        return int(self.credits.get(addr, u256(0)))
+    def get_credit(self, account: str) -> str:
+        addr_str = str(account).lower()
+        return str(int(self.credits.get(addr_str, u256(0))))
 
     @gl.public.view
     def get_pending_withdrawal(self, account: str) -> int:
         """Alias for get_credit to support existing frontend integrations."""
-        return self.get_credit(account)
+        return int(self.get_credit(account))
 
     @gl.public.write.payable
     def create_claim(
