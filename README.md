@@ -49,33 +49,7 @@ graph TD
     W -->|Recipient or Funder Calls withdraw| M[gl.emit_transfer to Caller]
 ```
 
----
 
-## 🛡️ The Steward Checklist (Pre-Emptive Audit Compliance)
-
-Remediate was engineered directly against historical steward rejections on previous GenLayer submissions:
-
-### 1. Provider Court Compliance (ID Correlation & No Subjective Control)
-- **Deterministic Correlation IDs:** Replaced vulnerable global monotonic counters (`next_claim_id`) with transaction-specific Keccak-256 hashes derived from `sender + recipient + advisory + repo + commit + datetime + nonce` (`claim-0x...`).
-- **Concurrent Creation Proofs:** Tested under multi-threaded concurrency (`tests/direct/test_remediate.py`) to guarantee zero ID collisions under parallel block construction.
-- **Objective Payout Rubric:** Bounty amounts and recipients are strictly locked at escrow creation; neither party can alter weights or terms post-deposit.
-
-### 2. Alpha Court Compliance (Complete Settlement & No Trapped Funds)
-- **Pull-over-Push Settlement:** Replaced uncallable SDK methods with native `gl.get_contract_at(Address(caller)).emit_transfer(value=amount)`.
-- **Checks-Effects-Interactions (CEI):** Internal balances in `credits: TreeMap[Address, u256]` are updated prior to any external interaction.
-- **Reversion on Transfer Failure:** The `withdraw()` method allows the transaction to revert if `emit_transfer` fails, ensuring user credits are never zeroed unless the funds successfully exit the contract.
-
-### 3. LicenseLock Compliance (Fail-Closed Evidence Scope)
-- **Strict OSV Repository Binding:** The parser inspects Git ranges and strictly enforces repository equality against `owner/repo`.
-- **Introduced Commits Banned:** Only commits explicitly listed under `ranges[].events[].fixed` are accepted as exact fixes. Commits that introduced vulnerabilities (`ranges[].events[].introduced`), reference URLs, and issue links are strictly ignored.
-- **Fail-Closed on Missing Evidence:** Any network 404, rate limit, parse failure, or empty patch diff transitions directly to `INSUFFICIENT` and immediately credits a full refund to the funder.
-
-### 4. Sybil Court Compliance (UI & Contract Parity)
-- **No Phantom Methods:** The frontend interacts strictly with implemented methods (`create_claim`, `resolve`, `cancel`, `withdraw`, `get_claim`, `get_credit`, `get_pending_withdrawal`).
-- **Chain Enforcement:** StudioNet (`Chain ID 61999`) is strictly enforced across Wagmi connectors, blocking misdirected transactions.
-- **Synchronized Deployments:** The live Vercel application, `evidence/studionet.json`, and this repository all target the active contract address (`0xc8F5402e9Db1184435487046dd349070a330B54b`).
-
----
 
 ## ⚡ Live StudioNet Settlement Proofs
 
