@@ -121,6 +121,7 @@ export default function EscrowDocket() {
       }
       if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Resolve TX Finalized!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       const updatedClaim = await client.readContract({
         address: CONTRACT_ADDRESS,
         functionName: "get_claim",
@@ -165,6 +166,7 @@ export default function EscrowDocket() {
       }
       if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Cancel TX Finalized!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       const updatedClaim = await client.readContract({
         address: CONTRACT_ADDRESS,
         functionName: "get_claim",
