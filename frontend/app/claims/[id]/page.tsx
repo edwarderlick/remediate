@@ -109,13 +109,13 @@ export default function EscrowDocket() {
       let finalized = false;
       for (let i = 0; i < 60; i++) {
         const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
           finalized = true;
           break;
         }
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 2000));
       }
-      if (!finalized) throw new Error("Transaction timed out");
+      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Resolve TX Finalized!`);
       fetchClaim();
     } catch (err: any) {
@@ -139,13 +139,13 @@ export default function EscrowDocket() {
       let finalized = false;
       for (let i = 0; i < 60; i++) {
         const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
           finalized = true;
           break;
         }
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 2000));
       }
-      if (!finalized) throw new Error("Transaction timed out");
+      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Cancel TX Finalized!`);
       fetchClaim();
     } catch (err: any) {
@@ -169,13 +169,13 @@ export default function EscrowDocket() {
       let finalized = false;
       for (let i = 0; i < 60; i++) {
         const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
           finalized = true;
           break;
         }
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 2000));
       }
-      if (!finalized) throw new Error("Transaction timed out");
+      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Withdraw TX Finalized!`);
       setPendingBalance(BigInt(0));
       if (refetchBalance) await refetchBalance();

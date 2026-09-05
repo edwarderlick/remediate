@@ -51,13 +51,15 @@ export default function CreateEscrow() {
       let finalized = false;
       for (let i = 0; i < 60; i++) {
         const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === 3 || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
           finalized = true;
           break;
         }
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 2000));
       }
-      if (!finalized) throw new Error("Transaction timed out");
+      if (!finalized) {
+        throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check your escrow status.");
+      }
       
       setAdvisoryId("");
       setRepo("");
@@ -65,10 +67,9 @@ export default function CreateEscrow() {
       setRecipient("");
       setAmount("");
 
-      setTimeout(() => {
-        router.refresh();
-        router.push("/claims");
-      }, 500);
+      setIsLoading(false);
+      router.refresh();
+      router.push("/claims");
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("User rejected") || err?.name === "UserRejectedRequestError") {
@@ -76,7 +77,6 @@ export default function CreateEscrow() {
       } else {
         setError(err.message || "Transaction failed");
       }
-    } finally {
       setIsLoading(false);
     }
   };
