@@ -84,7 +84,7 @@ class RemediateContract(gl.Contract):
 
         # External transfer. If this fails, entire call reverts, restoring self.credits[caller]!
         try:
-            gl.get_contract_at(Address(str(caller))).emit_transfer(value=amount, on="finalized")
+            gl.get_contract_at(caller).emit_transfer(value=amount, on="finalized")
         finally:
             self.withdrawing = False
 
