@@ -53,7 +53,7 @@ def compute_claim_id(
     
     Bans sequential global counters (Provider Court fix).
     """
-    raw = f"{sender.lower()}-{recipient.lower()}-{advisory_id.upper()}-{owner_repo.lower()}-{commit_sha.lower()}-{dt}-{nonce}"
+    raw = f"{sender.lower()}-{recipient.lower()}-{advisory_id}-{owner_repo.lower()}-{commit_sha.lower()}-{dt}-{nonce}"
     digest = hashlib.sha3_256(raw.encode("utf-8")).hexdigest()[:16]
     return f"claim-0x{digest}"
 
@@ -121,7 +121,7 @@ def check_exact_fix(osv_data: dict, target_repo: str, target_sha: str) -> bool:
 
 def build_advisory_url(advisory_id: str) -> str:
     """Builds pinned OSV advisory JSON endpoint."""
-    adv = (advisory_id or "").strip().upper()
+    adv = (advisory_id or "").strip()
     return f"https://api.osv.dev/v1/vulns/{adv}"
 
 

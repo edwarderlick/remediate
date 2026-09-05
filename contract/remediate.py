@@ -119,7 +119,7 @@ class RemediateContract(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid commit SHA: must be 40 hex characters")
 
         repo_clean = self._normalize_repo(owner_repo[:200])
-        adv_clean = (advisory_id[:100] or "").strip().upper()
+        adv_clean = (advisory_id[:100] or "").strip()
         if len(adv_clean) < 5:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid advisory ID")
 
