@@ -1,9 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-export const revalidate = 0;
+
 
 import { useEffect, useState } from "react";
 import { useGenLayer } from "@/hooks/useGenLayer";
