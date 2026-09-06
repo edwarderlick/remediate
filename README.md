@@ -1,4 +1,4 @@
-﻿# 🛡️ Remediate
+# 🛡️ Remediate
 
 **Fail-Closed Vulnerability Escrow Primitive on GenLayer**
 
@@ -36,8 +36,9 @@ graph TD
     
     F -->|SHA Not in OSV| H[Fetch Bounded Git Diff Patch]
     H --> I[LLM Equivalence Adjudication]
-    I -->|Remediated == True| J[STATE: FIXED_EQUIVALENT]
-    J -->|Credits Bounty to Recipient| W
+    I -->|Remediated == True| J[STATE: PENDING_APPEAL]
+    J -->|24 Hours Pass -> Recipient Calls finalize| P[STATE: FIXED_EQUIVALENT]
+    P -->|Credits Bounty to Recipient| W
     I -->|Remediated == False| K[STATE: NOT_FIXED]
     K -->|Credits 100% Refund to Funder| W
     
@@ -56,6 +57,8 @@ graph TD
 ### Key Security Properties
 
 - **Fail-Closed by Default:** Any crash, 404, timeout, or consensus failure forces the state to `INSUFFICIENT` and refunds the funder. Funds are never trapped.
+- **Rug-Pull Protection:** Funders cannot cancel the escrow immediately. A strict 7-day cancellation time-lock ensures the developer has a fair window to submit a patch.
+- **Equivalence Appeals:** When LLM consensus approves a patch, the claim enters a 24-hour `PENDING_APPEAL` state before `FIXED_EQUIVALENT` is finalized.
 - **CEI Pattern (Checks-Effects-Interactions):** In `withdraw()`, the user credit balance is zeroed to `0` *before* the external `emit_transfer` call. If the transfer fails, the entire transaction reverts atomically. Re-entrancy is impossible.
 - **Pull-Over-Push Settlement:** Payouts are never pushed during `resolve()` or `cancel()`. Credits accumulate in a `credits` mapping and users pull their own funds via `withdraw()`, eliminating reentrancy vectors.
 - **Deterministic Claim IDs:** Claim IDs are derived from a SHA-256 hash of `sender + recipient + advisory + repo + commit + datetime + nonce`, guaranteeing zero collisions under concurrent block construction.
@@ -67,10 +70,11 @@ graph TD
 | :--- | :--- | :--- |
 | `OPEN` | Initial state after `create_claim` | Funds locked in contract |
 | `FIXED_EXACT` | Commit SHA found in OSV `fixed` events | 100% bounty credited to Recipient |
-| `FIXED_EQUIVALENT` | LLM consensus: patch fixes the advisory | 100% bounty credited to Recipient |
+| `PENDING_APPEAL` | LLM consensus approved patch | Funds locked for 24-hour window |
+| `FIXED_EQUIVALENT` | `finalize()` called after 24h `PENDING_APPEAL` | 100% bounty credited to Recipient |
 | `NOT_FIXED` | LLM consensus: patch does not fix advisory | 100% refund credited to Funder |
 | `INSUFFICIENT` | OSV 404, patch missing, VM crash, or consensus failure | 100% refund credited to Funder |
-| `CANCELED` | Funder calls `cancel()` while `OPEN` | 100% refund credited to Funder |
+| `CANCELED` | Funder calls `cancel()` after 7-day lock | 100% refund credited to Funder |
 
 ---
 

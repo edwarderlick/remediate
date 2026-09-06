@@ -2,20 +2,39 @@
 import json
 import re
 import hashlib
+import datetime
 from dataclasses import dataclass
 from genlayer import *
 
 ERROR_EXPECTED = "[EXPECTED]"
 
 STATE_OPEN = "OPEN"
+STATE_PENDING_APPEAL = "PENDING_APPEAL"
 STATE_FIXED_EXACT = "FIXED_EXACT"
 STATE_FIXED_EQUIVALENT = "FIXED_EQUIVALENT"
 STATE_NOT_FIXED = "NOT_FIXED"
 STATE_INSUFFICIENT = "INSUFFICIENT"
 STATE_CANCELED = "CANCELED"
 
-MIN_PREMIUM_WEI = u256(10**15) # 0.001 GEN
+NETWORK_ERROR_SENTINEL = "NETWORK_ERROR"
+
+MIN_PREMIUM_WEI = u256(10**15)  # 0.001 GEN
 SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+CANCEL_LOCK_SECONDS = 604800   # 7 days
+APPEAL_WINDOW_SECONDS = 86400  # 24 hours
+
+def parse_dt_to_unix(dt_str: str) -> int:
+    if not dt_str:
+        return 0
+    try:
+        return int(float(dt_str))
+    except Exception:
+        pass
+    try:
+        dt_clean = dt_str.replace("Z", "+00:00")
+        return int(datetime.datetime.fromisoformat(dt_clean).timestamp())
+    except Exception:
+        return 0
 
 
 @allow_storage
@@ -31,6 +50,9 @@ class Claim:
     state: str
     rationale: str
     created_at: str
+    cancel_deadline: str   # Unix timestamp: funder can cancel after this
+    appeal_state: str      # Pending verdict stored during appeal window
+    appeal_deadline: str   # Unix timestamp: verdict becomes final after this
 
 
 class RemediateContract(gl.Contract):
@@ -64,7 +86,7 @@ class RemediateContract(gl.Contract):
     @gl.public.write
     def withdraw(self) -> None:
         """Withdraws accumulated pull-payment credits.
-        
+
         Follows strict Checks-Effects-Interactions:
         Credits balance is zeroed before transfer. If emit_transfer fails,
         the transaction reverts and the user's credits balance is preserved.
@@ -107,8 +129,9 @@ class RemediateContract(gl.Contract):
         recipient: str
     ) -> str:
         """Creates an escrow locked against a vulnerability fix.
-        
+
         Uses transaction-specific deterministic hashing for ID correlation.
+        Sets a 7-day cancellation protection window for the recipient.
         """
         value = gl.message.value
         sender = gl.message.sender_address
@@ -126,8 +149,8 @@ class RemediateContract(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid advisory ID")
 
         recipient_addr = Address(recipient)
-        nonce = str(gl.message_raw.get("nonce", ""))
         dt = str(gl.message_raw.get("datetime", ""))
+        nonce = str(gl.message_raw.get("nonce", ""))
 
         # Deterministic transaction-specific correlation ID (Provider Court fix)
         hash_input = f"{sender}-{recipient_addr}-{adv_clean}-{repo_clean}-{sha_clean}-{dt}-{nonce}"
@@ -140,6 +163,10 @@ class RemediateContract(gl.Contract):
         if claim_id in self.claims:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim ID collision: {claim_id}")
 
+        # Compute cancel deadline: created_at unix + 7 days
+        created_at_unix = parse_dt_to_unix(dt)
+        cancel_deadline = str(created_at_unix + CANCEL_LOCK_SECONDS)
+
         self.claims[claim_id] = Claim(
             id=claim_id,
             advisory_id=adv_clean,
@@ -151,13 +178,22 @@ class RemediateContract(gl.Contract):
             state=STATE_OPEN,
             rationale="",
             created_at=dt,
+            cancel_deadline=cancel_deadline,
+            appeal_state="",
+            appeal_deadline="",
         )
         self.claim_list.append(claim_id)
         return claim_id
 
     @gl.public.write
     def resolve(self, claim_id: str) -> str:
-        """Resolves escrow using strict multi-validator equivalence and fail-closed evidence."""
+        """Resolves escrow using strict multi-validator equivalence and fail-closed evidence.
+
+        Security properties:
+        - Only the recipient may trigger resolution (prevents griefing attacks)
+        - Transient network failures revert the transaction (retryable) instead of permanently settling
+        - On verdict, enters PENDING_APPEAL state for 24 hours before funds move
+        """
         cid = str(claim_id or "").strip()
         if cid not in self.claims:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim not found: {cid}")
@@ -166,30 +202,50 @@ class RemediateContract(gl.Contract):
         if claim.state != STATE_OPEN:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim is not in OPEN state (currently {claim.state})")
 
+        # FIX 2: Only recipient can trigger resolution
+        sender = gl.message.sender_address
+        if str(sender).lower() != str(claim.recipient).lower():
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Unauthorized: only the recipient can trigger resolution")
+
         adv_id = claim.advisory_id
         target_repo = claim.owner_repo
         target_sha = claim.commit_sha
-        funder = claim.funder
-        recipient = claim.recipient
-        amount = claim.amount
 
         def evaluate_consensus() -> str:
-            """Multi-validator deterministic evaluation task."""
+            """Multi-validator deterministic evaluation task.
+
+            Returns one of: FIXED_EXACT, FIXED_EQUIVALENT, NOT_FIXED, INSUFFICIENT, NETWORK_ERROR
+            NETWORK_ERROR is a sentinel for transient failures that should revert the transaction.
+            """
             url = f"https://api.osv.dev/v1/vulns/{adv_id}"
             raw_json = ""
             try:
                 res = gl.nondet.web.render(url, mode="text")
                 raw_json = str(res)
-            except Exception as e:
-                return "INSUFFICIENT"
+                if not raw_json or raw_json.strip() == "":
+                    # Empty response = transient error, not a 404
+                    return NETWORK_ERROR_SENTINEL
+            except Exception:
+                # Network error fetching OSV = transient, should be retried
+                return NETWORK_ERROR_SENTINEL
 
+            # A genuine 404 returns JSON like {"code": 5, "message": "not found"}
+            # A valid advisory is a JSON dict with an "id" key
             try:
                 advisory = json.loads(raw_json)
-            except Exception as e:
-                return "INSUFFICIENT"
+            except Exception:
+                # Malformed JSON = permanent data problem, settle as INSUFFICIENT
+                return STATE_INSUFFICIENT
 
-            if not isinstance(advisory, dict) or advisory.get("withdrawn"):
-                return "INSUFFICIENT"
+            if not isinstance(advisory, dict):
+                return STATE_INSUFFICIENT
+
+            # OSV API 404 response has no "id" field; treat as INSUFFICIENT (permanent)
+            if "id" not in advisory:
+                return STATE_INSUFFICIENT
+
+            if advisory.get("withdrawn"):
+                return STATE_INSUFFICIENT
 
             # ── 1. FAIL-CLOSED DETERMINISTIC FIX CHECK ────────────────────────
             fixed_shas = []
@@ -223,18 +279,24 @@ class RemediateContract(gl.Contract):
                                 fixed_shas.append(fix_sha)
 
             if target_sha in fixed_shas:
-                return "FIXED_EXACT"
+                return STATE_FIXED_EXACT
 
             # ── 2. LLM EQUIVALENCE FALLBACK ─────────────────────────────────
-            patch_url = f"https://github/{target_repo}/commit/{target_sha}.patch".replace("https://github/", "https://github.com/")
+            patch_url = f"https://github.com/{target_repo}/commit/{target_sha}.patch"
             patch_text = ""
             try:
                 patch_res = gl.nondet.web.render(patch_url, mode="text")
                 patch_text = str(patch_res).strip()
-                if not patch_text or len(patch_text) > 25000:
-                    return "INSUFFICIENT"
-            except Exception as e:
-                return "INSUFFICIENT"
+                if not patch_text:
+                    return NETWORK_ERROR_SENTINEL  # Empty = transient, retry
+                if len(patch_text) > 25000:
+                    return STATE_INSUFFICIENT  # Too large to evaluate = submission quality issue
+            except Exception:
+                return NETWORK_ERROR_SENTINEL  # Network error fetching patch = transient
+
+            # Check if it looks like a real patch (GitHub 404 returns HTML)
+            if "<!DOCTYPE html>" in patch_text[:200] or "<html" in patch_text[:200]:
+                return STATE_INSUFFICIENT  # Commit SHA doesn't exist on GitHub
 
             prompt = f"""You are a deterministic code audit oracle adjudicating a vulnerability fix.
 Target Advisory: {adv_id}
@@ -259,39 +321,94 @@ INSTRUCTIONS:
                     llm_res = re.sub(r"```$", "", llm_res).strip()
                 parsed = json.loads(llm_res)
                 if parsed.get("remediated") is True:
-                    return "FIXED_EQUIVALENT"
+                    return STATE_FIXED_EQUIVALENT
                 else:
-                    return "NOT_FIXED"
-            except Exception as e:
-                return "INSUFFICIENT"
+                    return STATE_NOT_FIXED
+            except Exception:
+                return STATE_INSUFFICIENT
 
         # Multi-node consensus strictly enforced across validator committee
         try:
             status = gl.eq_principle.strict_eq(evaluate_consensus)
-            reason = f"Consensus reached: {status}"
-            if status not in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT, STATE_NOT_FIXED, STATE_INSUFFICIENT):
-                status = STATE_INSUFFICIENT
         except Exception as e:
-            status = STATE_INSUFFICIENT
-            reason = f"VM Execution Crash or Consensus Failure: {str(e)}"
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Consensus execution failed: {str(e)}")
 
-        # ── 3. STATE UPDATES & SETTLEMENT ─────────────────────────────────
-        claim.state = status
-        claim.rationale = reason
+        # FIX 3: Transient network error → revert so caller can retry
+        if status == NETWORK_ERROR_SENTINEL:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Network error fetching evidence. Please retry resolution in a few minutes.")
+
+        if status not in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT, STATE_NOT_FIXED, STATE_INSUFFICIENT):
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Unexpected consensus result: {status}")
+
+        # ── FIX 4: PENDING_APPEAL — do not credit funds yet ────────────────
+        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_unix = parse_dt_to_unix(now_dt)
+        appeal_deadline = str(now_unix + APPEAL_WINDOW_SECONDS)
+
+        claim.state = STATE_PENDING_APPEAL
+        claim.appeal_state = status
+        claim.appeal_deadline = appeal_deadline
+        claim.rationale = f"Verdict: {status}. Appeal window open until {appeal_deadline}."
         self.claims[cid] = claim
 
-        if status in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT):
-            # Recipient earned bounty
+        return json.dumps({
+            "ok": True,
+            "state": STATE_PENDING_APPEAL,
+            "appeal_state": status,
+            "appeal_deadline": appeal_deadline,
+            "message": "Verdict reached. A 24-hour appeal window is now open before funds are released."
+        })
+
+    @gl.public.write
+    def finalize(self, claim_id: str) -> str:
+        """Finalizes a verdict after the 24-hour appeal window has passed.
+
+        Callable by anyone (funder or recipient) after appeal_deadline.
+        Moves funds from the contract to the correct party's credits mapping.
+        """
+        cid = str(claim_id or "").strip()
+        if cid not in self.claims:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim not found: {cid}")
+
+        claim = self.claims[cid]
+        if claim.state != STATE_PENDING_APPEAL:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim is not in PENDING_APPEAL state (currently {claim.state})")
+
+        # Check appeal window has expired
+        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_unix = parse_dt_to_unix(now_dt)
+        try:
+            deadline_unix = int(float(claim.appeal_deadline)) if claim.appeal_deadline else 0
+        except Exception:
+            deadline_unix = 0
+
+        if now_unix < deadline_unix:
+            remaining = deadline_unix - now_unix
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Appeal window not yet expired. {remaining} seconds remaining.")
+
+        final_status = claim.appeal_state
+        funder = claim.funder
+        recipient = claim.recipient
+        amount = claim.amount
+
+        claim.state = final_status
+        claim.rationale = f"Finalized: {final_status}. Appeal window expired."
+        self.claims[cid] = claim
+
+        if final_status in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT):
             self._credit(recipient, amount)
         else:
-            # Funder refunded on NOT_FIXED or INSUFFICIENT
             self._credit(funder, amount)
 
-        return json.dumps({"ok": True, "state": status, "reason": reason})
+        return json.dumps({"ok": True, "state": final_status})
 
     @gl.public.write
     def cancel(self, claim_id: str) -> str:
-        """Allows the funder to cancel an open escrow and recover funds."""
+        """Allows the funder to cancel an open escrow and recover funds.
+
+        FIX 1: Protected by a 7-day recipient window. Funder cannot cancel
+        immediately after creation, preventing rug-pull attacks.
+        """
         cid = str(claim_id or "").strip()
         if cid not in self.claims:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim not found: {cid}")
@@ -304,8 +421,23 @@ INSTRUCTIONS:
         if claim.state != STATE_OPEN:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Cannot cancel claim in {claim.state} state")
 
+        # FIX 1: Enforce cancellation time-lock
+        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_unix = parse_dt_to_unix(now_dt)
+        try:
+            deadline_unix = int(float(claim.cancel_deadline)) if claim.cancel_deadline else 0
+        except Exception:
+            deadline_unix = 0
+
+        if now_unix < deadline_unix:
+            remaining = deadline_unix - now_unix
+            raise gl.vm.UserError(
+                f"{ERROR_EXPECTED} Escrow is within the 7-day recipient protection window. "
+                f"{remaining} seconds until cancellation is permitted."
+            )
+
         claim.state = STATE_CANCELED
-        claim.rationale = "Funder canceled open escrow"
+        claim.rationale = "Funder canceled open escrow after protection window"
         self.claims[cid] = claim
         self._credit(claim.funder, claim.amount)
         return json.dumps({"ok": True, "state": STATE_CANCELED})
@@ -327,6 +459,9 @@ INSTRUCTIONS:
             "state": v.state,
             "rationale": v.rationale,
             "created_at": getattr(v, "created_at", ""),
+            "cancel_deadline": getattr(v, "cancel_deadline", ""),
+            "appeal_state": getattr(v, "appeal_state", ""),
+            "appeal_deadline": getattr(v, "appeal_deadline", ""),
         }
 
     @gl.public.view
@@ -345,6 +480,9 @@ INSTRUCTIONS:
                     "state": v.state,
                     "rationale": v.rationale,
                     "created_at": getattr(v, "created_at", ""),
+                    "cancel_deadline": getattr(v, "cancel_deadline", ""),
+                    "appeal_state": getattr(v, "appeal_state", ""),
+                    "appeal_deadline": getattr(v, "appeal_deadline", ""),
                 }
         return json.dumps(all_claims)
 
@@ -366,6 +504,9 @@ INSTRUCTIONS:
                     "state": v.state,
                     "rationale": v.rationale,
                     "created_at": getattr(v, "created_at", ""),
+                    "cancel_deadline": getattr(v, "cancel_deadline", ""),
+                    "appeal_state": getattr(v, "appeal_state", ""),
+                    "appeal_deadline": getattr(v, "appeal_deadline", ""),
                 }
         return json.dumps(all_claims)
 

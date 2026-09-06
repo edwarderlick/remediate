@@ -89,6 +89,7 @@ export default function BrowseClaims() {
           <option value="NOT_FIXED">Not Fixed</option>
           <option value="INSUFFICIENT">Insufficient</option>
           <option value="CANCELED">Canceled</option>
+          <option value="PENDING_APPEAL">Pending Appeal</option>
         </select>
       </div>
 

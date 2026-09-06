@@ -25,6 +25,12 @@ export default function EscrowDocket() {
   const [isLoading, setIsLoading] = useState(true);
   const [actionType, setActionType] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchClaim = useCallback(async () => {
     if (!client) return;
@@ -185,6 +191,51 @@ export default function EscrowDocket() {
     }
   };
 
+  const handleFinalize = async () => {
+    if (!client || actionType) return;
+    setActionType("finalize");
+    setMessage("Finalizing claim payout...");
+    try {
+      const hash = await client.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "finalize",
+        args: [id as string]
+      });
+      setMessage(`Finalize TX Submitted: ${hash}. Waiting for consensus...`);
+      let finalized = false;
+      for (let i = 0; i < 60; i++) {
+        const tx = await client.getTransaction({ hash });
+        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
+          if (revertReason) {
+            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
+          }
+          finalized = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
+      setMessage(`Finalize TX Finalized!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const updatedClaim = await client.readContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "get_claim",
+        args: [id as string]
+      });
+      let parsed = updatedClaim;
+      if (typeof updatedClaim === "string") {
+        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
+      }
+      setClaim(parsed);
+      router.refresh();
+    } catch (err: any) {
+      handleError(err);
+    } finally {
+      setActionType(null);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!client || actionType) return;
     setActionType("withdraw");
@@ -245,10 +296,11 @@ export default function EscrowDocket() {
   if (!claim) return <EmptyState title="Escrow Not Found" description="This claim ID does not exist." type="error" />;
 
   const stateMap: Record<number, string> = {
-    1: "OPEN", 2: "FIXED_EXACT", 3: "FIXED_EQUIVALENT", 4: "NOT_FIXED", 5: "INSUFFICIENT", 6: "CANCELED"
+    1: "OPEN", 2: "FIXED_EXACT", 3: "FIXED_EQUIVALENT", 4: "NOT_FIXED", 5: "INSUFFICIENT", 6: "CANCELED", 7: "PENDING_APPEAL"
   };
   const stateName = typeof claim?.state === "number" ? stateMap[claim.state] : claim?.state;
   const isOpen = stateName === "OPEN";
+  const isPendingAppeal = stateName === "PENDING_APPEAL";
   const funderAddress = claim?.funder || claim?.funder_address || claim?.sender_address || "";
   const isFunder = Boolean(address && funderAddress && address.toLowerCase() === funderAddress.toLowerCase());
   
@@ -274,7 +326,7 @@ export default function EscrowDocket() {
           <div className="text-center font-mono p-8 border border-white/10 bg-[#111] shadow-2xl max-w-lg w-full mx-4">
             <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
             <h2 className="text-xl font-bold text-white mb-2 tracking-widest uppercase">
-              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : "Processing Withdrawal"}
+              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : actionType === "finalize" ? "Finalizing Payout" : "Processing Withdrawal"}
             </h2>
             <p className="text-gray-400 text-sm break-words">{message}</p>
           </div>
@@ -350,7 +402,7 @@ export default function EscrowDocket() {
         </section>
 
         {/* RESULT (ONLY SHOWS IF NOT OPEN) */}
-        {!isOpen && (
+        {!isOpen && !isPendingAppeal && (
           <section className="mb-8">
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
               <Terminal className="w-4 h-4" /> Terminal Result
@@ -362,6 +414,41 @@ export default function EscrowDocket() {
               <div className="flex justify-between"><span className="text-gray-500">AMOUNT:</span> <span className="text-white">{formattedAmount} GEN</span></div>
               <div className={`border-t border-lines pt-2 mt-2 ${stateName === "INSUFFICIENT" && claim?.rationale ? "text-red-500" : "text-state-exact"}`}>
                 {resolutionResult}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* TIME LOCKS / COUNTDOWNS */}
+        {(isOpen || isPendingAppeal) && (
+          <section className="mb-8">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
+              <Terminal className="w-4 h-4" /> Deadlines
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-sm">
+              <div className="border border-lines p-4 bg-background">
+                <p className="text-gray-500 mb-1">Cancellation Time-Lock</p>
+                {claim?.cancel_deadline ? (
+                  <p className={`text-white ${currentTime >= parseInt(claim.cancel_deadline) ? "text-state-fail" : ""}`}>
+                    {currentTime >= parseInt(claim.cancel_deadline)
+                      ? "UNLOCKED (Funder can cancel)"
+                      : `${Math.max(0, parseInt(claim.cancel_deadline) - currentTime)}s remaining`}
+                  </p>
+                ) : (
+                  <p className="text-gray-500">N/A</p>
+                )}
+              </div>
+              <div className="border border-lines p-4 bg-background">
+                <p className="text-gray-500 mb-1">Appeal Time-Lock</p>
+                {claim?.appeal_deadline ? (
+                  <p className={`text-white ${currentTime >= parseInt(claim.appeal_deadline) ? "text-state-exact" : ""}`}>
+                    {currentTime >= parseInt(claim.appeal_deadline)
+                      ? "UNLOCKED (Recipient can finalize)"
+                      : `${Math.max(0, parseInt(claim.appeal_deadline) - currentTime)}s remaining`}
+                  </p>
+                ) : (
+                  <p className="text-gray-500">Not in Pending Appeal state</p>
+                )}
               </div>
             </div>
           </section>
@@ -410,14 +497,24 @@ export default function EscrowDocket() {
                 )}
                 
                 {isOpen && isFunder && (
-                  <button 
-                    onClick={handleCancel}
-                    disabled={!!actionType}
-                    className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50"
-                  >
-                    {actionType === "cancel" ? "Pending..." : "Cancel Escrow"}
-                  </button>
-                )}
+          <button 
+            onClick={handleCancel}
+            disabled={!!actionType || (claim?.cancel_deadline && currentTime < parseInt(claim.cancel_deadline))}
+            className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+          >
+            {actionType === "cancel" ? "Pending..." : "Cancel Escrow"}
+          </button>
+        )}
+
+        {isPendingAppeal && (
+          <button 
+            onClick={handleFinalize}
+            disabled={!!actionType || (claim?.appeal_deadline && currentTime < parseInt(claim.appeal_deadline))}
+            className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:hover:bg-white"
+          >
+            {actionType === "finalize" ? "Pending..." : "Finalize Payout"}
+          </button>
+        )}
 
                 {pendingBalance > BigInt(0) && (
                   <button 

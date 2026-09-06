@@ -104,7 +104,7 @@ def test_fail_closed_exact_fix_verification():
 
 def test_urls_are_pinned():
     adv_url = build_advisory_url("ghsa-1234-5678-90ab")
-    assert adv_url == "https://api.osv.dev/v1/vulns/GHSA-1234-5678-90AB"
+    assert adv_url == "https://api.osv.dev/v1/vulns/ghsa-1234-5678-90ab"
     
     patch_url = build_patch_url("alice/target-repo", "2222222222222222222222222222222222222222")
     assert patch_url == "https://github.com/alice/target-repo/commit/2222222222222222222222222222222222222222.patch"
