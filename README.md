@@ -10,7 +10,7 @@ Funders lock native GEN against a specific repository and vulnerability advisory
 
 ### 🌐 Live Protocol Info
 - **Live App:** [https://remediate-five.vercel.app/](https://remediate-five.vercel.app/)
-- **StudioNet Contract Address:** `0xc95dad8863829185CD8bfFe62c25D005c4F8Ea07`
+- **StudioNet Contract Address:** `0x055f47d2755281D881eb4ffd52067b52Cf1049f2`
 - **Chain ID:** `61999`
 - **RPC Endpoint:** `https://studio.genlayer.com/api`
 

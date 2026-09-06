@@ -96,3 +96,13 @@ def test_withdraw_with_no_credits_reverts(direct_vm, direct_deploy, direct_alice
 
     with pytest.raises(Exception, match="No credits available"):
         contract.withdraw()
+def test_withdraw_with_credits(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+    
+    cid = contract.create_claim("GHSA-cancel-test", "owner/repo", "2222222222222222222222222222222222222222", "0x" + direct_bob.hex())
+    contract.cancel(cid)
+    
+    direct_vm.sender = direct_alice
+    contract.withdraw()
