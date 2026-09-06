@@ -211,8 +211,27 @@ export default function EscrowDocket() {
       }
       if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
       setMessage(`Withdraw TX Finalized!`);
-      setPendingBalance(BigInt(0));
-      if (refetchBalance) await refetchBalance();
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      try {
+        const wResult = await client.readContract({
+          address: CONTRACT_ADDRESS,
+          functionName: "get_pending_withdrawal",
+          args: [address]
+        });
+        if (typeof wResult === "number" || typeof wResult === "bigint") {
+          setPendingBalance(BigInt(wResult));
+        } else if (typeof wResult === "string") {
+          try {
+            const wParsed = JSON.parse(wResult);
+            setPendingBalance(BigInt(wParsed.amount ?? wParsed));
+          } catch {
+            setPendingBalance(BigInt(wResult));
+          }
+        }
+      } catch (e) {
+        setPendingBalance(BigInt(0));
+      }
+      if (typeof refetchBalance !== 'undefined' && refetchBalance) await refetchBalance();
       router.refresh();
     } catch (err: any) {
       handleError(err);
@@ -249,7 +268,19 @@ export default function EscrowDocket() {
   const formattedAmount = claim?.amount ? formatEther(BigInt(claim.amount)) : "0";
 
   return (
-    <div className="max-w-4xl mx-auto py-12">
+    <div className="max-w-4xl mx-auto py-12 relative">
+      {actionType && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="text-center font-mono p-8 border border-white/10 bg-[#111] shadow-2xl max-w-lg w-full mx-4">
+            <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
+            <h2 className="text-xl font-bold text-white mb-2 tracking-widest uppercase">
+              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : "Processing Withdrawal"}
+            </h2>
+            <p className="text-gray-400 text-sm break-words">{message}</p>
+          </div>
+        </div>
+      )}
+
       <Link href="/claims" className="inline-flex items-center gap-2 text-sm font-mono text-gray-400 hover:text-white mb-8 transition-colors">
         <ArrowLeft className="w-4 h-4" /> BACK TO CLAIMS
       </Link>
