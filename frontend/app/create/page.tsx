@@ -73,7 +73,7 @@ export default function CreateEscrow() {
 
       setIsLoading(false);
       router.refresh();
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 3000));
       router.push("/claims");
     } catch (err: any) {
       console.error(err);
