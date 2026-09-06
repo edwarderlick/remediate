@@ -15,6 +15,7 @@ STATE_FIXED_EQUIVALENT = "FIXED_EQUIVALENT"
 STATE_NOT_FIXED = "NOT_FIXED"
 STATE_INSUFFICIENT = "INSUFFICIENT"
 STATE_CANCELED = "CANCELED"
+STATE_ESCALATED = "ESCALATED"
 
 NETWORK_ERROR_SENTINEL = "NETWORK_ERROR"
 
@@ -401,6 +402,36 @@ INSTRUCTIONS:
             self._credit(funder, amount)
 
         return json.dumps({"ok": True, "state": final_status})
+
+    @gl.public.write
+    def appeal(self, claim_id: str) -> str:
+        """Allows the funder to dispute the LLM consensus before payout finalizes."""
+        cid = str(claim_id or "").strip()
+        if cid not in self.claims:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim not found: {cid}")
+
+        claim = self.claims[cid]
+        sender = gl.message.sender_address
+        if str(sender).lower() != str(claim.funder).lower():
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Unauthorized: only funder can appeal")
+
+        if claim.state != STATE_PENDING_APPEAL:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Can only appeal during PENDING_APPEAL state")
+
+        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_unix = parse_dt_to_unix(now_dt)
+        try:
+            deadline_unix = int(float(claim.appeal_deadline)) if claim.appeal_deadline else 0
+        except Exception:
+            deadline_unix = 0
+
+        if now_unix >= deadline_unix:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Appeal window has already expired")
+
+        claim.state = STATE_ESCALATED
+        claim.rationale = "Funder escalated verdict for manual review."
+        self.claims[cid] = claim
+        return json.dumps({"ok": True, "state": STATE_ESCALATED})
 
     @gl.public.write
     def cancel(self, claim_id: str) -> str:

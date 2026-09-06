@@ -2,7 +2,7 @@ import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 
 export const CONTRACT_ADDRESS = (
-  (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x055f47d2755281D881eb4ffd52067b52Cf1049f2").trim()
+  (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x03aD27586a9F15D99bBD8eCD1ccE448F45773e9B").trim()
 ) as `0x${string}`;
 
 export const STUDIONET_CHAIN_ID = 61999;

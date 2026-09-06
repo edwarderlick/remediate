@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import { CircleDot, CheckCircle2, CheckSquare, XCircle, AlertTriangle, XOctagon } from "lucide-react";
+import { CircleDot, CheckCircle2, CheckSquare, XCircle, AlertTriangle, XOctagon, AlertCircle } from "lucide-react";
 
-type ContractState = "OPEN" | "FIXED_EXACT" | "FIXED_EQUIVALENT" | "NOT_FIXED" | "INSUFFICIENT" | "CANCELED" | "PENDING_APPEAL";
+type ContractState = "OPEN" | "FIXED_EXACT" | "FIXED_EQUIVALENT" | "NOT_FIXED" | "INSUFFICIENT" | "CANCELED" | "PENDING_APPEAL" | "ESCALATED";
 
 interface StatusBadgeProps {
   state: ContractState;
@@ -44,6 +44,11 @@ export function StatusBadge({ state, className }: StatusBadgeProps) {
       label: "Pending Appeal",
       icon: AlertTriangle,
       colors: "bg-state-equiv/20 text-state-equiv border-state-equiv",
+    },
+    ESCALATED: {
+      label: "Escalated",
+      icon: AlertCircle,
+      colors: "bg-red-500/10 text-red-500 border-red-500",
     }
   };
 

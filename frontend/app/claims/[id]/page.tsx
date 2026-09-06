@@ -236,6 +236,51 @@ export default function EscrowDocket() {
     }
   };
 
+  const handleAppeal = async () => {
+    if (!client || actionType) return;
+    setActionType("appeal");
+    setMessage("Appealing verdict and freezing payout...");
+    try {
+      const hash = await client.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "appeal",
+        args: [id as string]
+      });
+      setMessage(`Appeal TX Submitted: ${hash}. Waiting for consensus...`);
+      let finalized = false;
+      for (let i = 0; i < 60; i++) {
+        const tx = await client.getTransaction({ hash });
+        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
+          if (revertReason) {
+            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
+          }
+          finalized = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
+      setMessage(`Appeal TX Finalized!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const updatedClaim = await client.readContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "get_claim",
+        args: [id as string]
+      });
+      let parsed = updatedClaim;
+      if (typeof updatedClaim === "string") {
+        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
+      }
+      setClaim(parsed);
+      router.refresh();
+    } catch (err: any) {
+      handleError(err);
+    } finally {
+      setActionType(null);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!client || actionType) return;
     setActionType("withdraw");
@@ -296,7 +341,7 @@ export default function EscrowDocket() {
   if (!claim) return <EmptyState title="Escrow Not Found" description="This claim ID does not exist." type="error" />;
 
   const stateMap: Record<number, string> = {
-    1: "OPEN", 2: "FIXED_EXACT", 3: "FIXED_EQUIVALENT", 4: "NOT_FIXED", 5: "INSUFFICIENT", 6: "CANCELED", 7: "PENDING_APPEAL"
+    1: "OPEN", 2: "FIXED_EXACT", 3: "FIXED_EQUIVALENT", 4: "NOT_FIXED", 5: "INSUFFICIENT", 6: "CANCELED", 7: "PENDING_APPEAL", 8: "ESCALATED"
   };
   const stateName = typeof claim?.state === "number" ? stateMap[claim.state] : claim?.state;
   const isOpen = stateName === "OPEN";
@@ -315,6 +360,7 @@ export default function EscrowDocket() {
     else if (stateName === "FIXED_EQUIVALENT") resolutionResult = "Paid to recipient. LLM consensus approved equivalence.";
     else if (stateName === "NOT_FIXED") resolutionResult = "Refunded to funder. Patch did not fix vulnerability.";
     else if (stateName === "INSUFFICIENT") resolutionResult = claim?.rationale ? claim.rationale : "Refunded to funder. Evidence missing or unavailable.";
+    else if (stateName === "ESCALATED") resolutionResult = claim?.rationale || "Payout paused. Funder escalated verdict for manual review.";
   }
 
   const formattedAmount = claim?.amount ? formatEther(BigInt(claim.amount)) : "0";
@@ -326,7 +372,7 @@ export default function EscrowDocket() {
           <div className="text-center font-mono p-8 border border-white/10 bg-[#111] shadow-2xl max-w-lg w-full mx-4">
             <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
             <h2 className="text-xl font-bold text-white mb-2 tracking-widest uppercase">
-              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : actionType === "finalize" ? "Finalizing Payout" : "Processing Withdrawal"}
+              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : actionType === "finalize" ? "Finalizing Payout" : actionType === "appeal" ? "Filing Appeal" : "Processing Withdrawal"}
             </h2>
             <p className="text-gray-400 text-sm break-words">{message}</p>
           </div>
@@ -513,6 +559,16 @@ export default function EscrowDocket() {
             className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:hover:bg-white"
           >
             {actionType === "finalize" ? "Pending..." : "Finalize Payout"}
+          </button>
+        )}
+
+        {isPendingAppeal && isFunder && (
+          <button 
+            onClick={handleAppeal}
+            disabled={!!actionType || (claim?.appeal_deadline && currentTime >= parseInt(claim.appeal_deadline))}
+            className="border border-state-equiv text-state-equiv font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-equiv/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+          >
+            {actionType === "appeal" ? "Pending..." : "Appeal Verdict"}
           </button>
         )}
 
