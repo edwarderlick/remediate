@@ -159,3 +159,58 @@ def test_appeal_success(direct_vm, direct_deploy, direct_alice, direct_bob):
     updated_claim = contract.get_claim(cid)
     assert updated_claim["state"] == "ESCALATED"
     assert "manual review" in updated_claim["rationale"]
+
+
+def test_resolve_recipient_only(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+    
+    cid = contract.create_claim("GHSA-1234", "owner/repo", "2222222222222222222222222222222222222222", "0x" + direct_bob.hex())
+    
+    # Alice (funder) tries to resolve, should revert
+    direct_vm.sender = direct_alice
+    with pytest.raises(Exception, match="Unauthorized: only the recipient can trigger resolution"):
+        contract.resolve(cid)
+
+
+def test_finalize_escalation_success(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+    
+    cid = contract.create_claim("GHSA-1234", "owner/repo", "2222222222222222222222222222222222222222", "0x" + direct_bob.hex())
+    
+    # Mock escalated state with expired timeout
+    claim = contract.claims[cid]
+    claim.state = "ESCALATED"
+    claim.escalation_deadline = "1" # Expired
+    contract.claims[cid] = claim
+    
+    # Anyone can finalize escalation
+    direct_vm.sender = direct_bob
+    res = contract.finalize_escalation(cid)
+    assert "NOT_FIXED" in res
+    
+    updated_claim = contract.get_claim(cid)
+    assert updated_claim["state"] == "NOT_FIXED"
+    
+    # Funder should get refund
+    assert int(contract.get_credit("0x" + direct_alice.hex())) == 10**16
+
+
+def test_finalize_escalation_before_deadline_reverts(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+    
+    cid = contract.create_claim("GHSA-1234", "owner/repo", "2222222222222222222222222222222222222222", "0x" + direct_bob.hex())
+    
+    # Mock escalated state with future timeout
+    claim = contract.claims[cid]
+    claim.state = "ESCALATED"
+    claim.escalation_deadline = "9999999999" # Future
+    contract.claims[cid] = claim
+    
+    with pytest.raises(Exception, match="Escalation timeout not yet expired"):
+        contract.finalize_escalation(cid)

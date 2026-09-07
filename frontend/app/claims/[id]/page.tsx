@@ -281,6 +281,52 @@ export default function EscrowDocket() {
     }
   };
 
+  
+  const handleFinalizeEscalation = async () => {
+    if (!client || actionType) return;
+    setActionType("finalize_escalation");
+    setMessage("Finalizing timed-out escalation...");
+    try {
+      const hash = await client.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "finalize_escalation",
+        args: [id as string]
+      });
+      setMessage(`Finalize Escalation TX Submitted: ${hash}. Waiting for consensus...`);
+      let finalized = false;
+      for (let i = 0; i < 60; i++) {
+        const tx = await client.getTransaction({ hash });
+        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
+          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
+          if (revertReason) {
+            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
+          }
+          finalized = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
+      setMessage(`Finalize Escalation TX Finalized!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const updatedClaim = await client.readContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "get_claim",
+        args: [id as string]
+      });
+      let parsed = updatedClaim;
+      if (typeof updatedClaim === "string") {
+        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
+      }
+      setClaim(parsed);
+      router.refresh();
+    } catch (err: any) {
+      handleError(err);
+    } finally {
+      setActionType(null);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!client || actionType) return;
     setActionType("withdraw");
@@ -348,6 +394,7 @@ export default function EscrowDocket() {
   const isPendingAppeal = stateName === "PENDING_APPEAL";
   const funderAddress = claim?.funder || claim?.funder_address || claim?.sender_address || "";
   const isFunder = Boolean(address && funderAddress && address.toLowerCase() === funderAddress.toLowerCase());
+  const isRecipient = Boolean(address && claim?.recipient && address.toLowerCase() === claim.recipient.toLowerCase());
   
   const safeOwnerRepo = claim?.owner_repo?.replace("https://", "")?.replace("http://", "")?.replace("github.com/", "")?.trim() || "";
   const osvUrl = `https://api.osv.dev/v1/vulns/${claim?.advisory_id}`;
@@ -372,7 +419,7 @@ export default function EscrowDocket() {
           <div className="text-center font-mono p-8 border border-white/10 bg-[#111] shadow-2xl max-w-lg w-full mx-4">
             <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
             <h2 className="text-xl font-bold text-white mb-2 tracking-widest uppercase">
-              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : actionType === "finalize" ? "Finalizing Payout" : actionType === "appeal" ? "Filing Appeal" : "Processing Withdrawal"}
+              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : actionType === "finalize" ? "Finalizing Payout" : actionType === "appeal" ? "Filing Appeal" : actionType === "finalize_escalation" ? "Finalizing Escalation" : "Processing Withdrawal"}
             </h2>
             <p className="text-gray-400 text-sm break-words">{message}</p>
           </div>
@@ -462,11 +509,26 @@ export default function EscrowDocket() {
                 {resolutionResult}
               </div>
             </div>
+              {stateName === "ESCALATED" && (
+                <div className="border border-lines p-4 bg-background col-span-1 md:col-span-2">
+                  <p className="text-gray-500 mb-1">Escalation Timeout</p>
+                  {claim?.escalation_deadline ? (
+                    <p className={`text-white ${currentTime >= parseInt(claim.escalation_deadline) ? "text-state-fail" : ""}`}>
+                      {currentTime >= parseInt(claim.escalation_deadline)
+                        ? "UNLOCKED (Anyone can finalize timeout)"
+                        : `${Math.max(0, parseInt(claim.escalation_deadline) - currentTime)}s remaining`}
+                    </p>
+                  ) : (
+                    <p className="text-gray-500">N/A</p>
+                  )}
+                </div>
+              )}
+
           </section>
         )}
 
         {/* TIME LOCKS / COUNTDOWNS */}
-        {(isOpen || isPendingAppeal) && (
+        {(isOpen || isPendingAppeal || stateName === "ESCALATED") && (
           <section className="mb-8">
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
               <Terminal className="w-4 h-4" /> Deadlines
@@ -497,6 +559,21 @@ export default function EscrowDocket() {
                 )}
               </div>
             </div>
+              {stateName === "ESCALATED" && (
+                <div className="border border-lines p-4 bg-background col-span-1 md:col-span-2">
+                  <p className="text-gray-500 mb-1">Escalation Timeout</p>
+                  {claim?.escalation_deadline ? (
+                    <p className={`text-white ${currentTime >= parseInt(claim.escalation_deadline) ? "text-state-fail" : ""}`}>
+                      {currentTime >= parseInt(claim.escalation_deadline)
+                        ? "UNLOCKED (Anyone can finalize timeout)"
+                        : `${Math.max(0, parseInt(claim.escalation_deadline) - currentTime)}s remaining`}
+                    </p>
+                  ) : (
+                    <p className="text-gray-500">N/A</p>
+                  )}
+                </div>
+              )}
+
           </section>
         )}
 
@@ -525,7 +602,7 @@ export default function EscrowDocket() {
               </button>
             ) : (
               <>
-                {isOpen && (
+                {isOpen && isRecipient && (
                   <button 
                     onClick={handleResolve}
                     disabled={!!actionType}
@@ -569,6 +646,17 @@ export default function EscrowDocket() {
             className="border border-state-equiv text-state-equiv font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-equiv/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
           >
             {actionType === "appeal" ? "Pending..." : "Appeal Verdict"}
+          </button>
+        )}
+
+                
+        {stateName === "ESCALATED" && (
+          <button 
+            onClick={handleFinalizeEscalation}
+            disabled={!!actionType || (claim?.escalation_deadline && currentTime < parseInt(claim.escalation_deadline))}
+            className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+          >
+            {actionType === "finalize_escalation" ? "Pending..." : "Timeout Escalation"}
           </button>
         )}
 
