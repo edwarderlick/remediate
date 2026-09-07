@@ -133,6 +133,7 @@ def test_appeal_unauthorized_reverts(direct_vm, direct_deploy, direct_alice, dir
     
     claim = contract.claims[cid]
     claim.state = "PENDING_APPEAL"
+    claim.appeal_state = "FIXED_EQUIVALENT"
     claim.appeal_deadline = "9999999999"
     contract.claims[cid] = claim
     
@@ -150,6 +151,7 @@ def test_appeal_success(direct_vm, direct_deploy, direct_alice, direct_bob):
     
     claim = contract.claims[cid]
     claim.state = "PENDING_APPEAL"
+    claim.appeal_state = "FIXED_EQUIVALENT"
     claim.appeal_deadline = "9999999999"
     contract.claims[cid] = claim
     
@@ -214,3 +216,47 @@ def test_finalize_escalation_before_deadline_reverts(direct_vm, direct_deploy, d
     
     with pytest.raises(Exception, match="Escalation timeout not yet expired"):
         contract.finalize_escalation(cid)
+
+def test_finalize_success(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+    
+    cid = contract.create_claim("GHSA-1234", "owner/repo", "2222222222222222222222222222222222222222", "0x" + direct_bob.hex())
+    
+    # Mock pending appeal state with expired timeout
+    claim = contract.claims[cid]
+    claim.state = "PENDING_APPEAL"
+    claim.appeal_state = "FIXED_EQUIVALENT"
+    claim.appeal_deadline = "1" # Expired
+    contract.claims[cid] = claim
+    
+    # Anyone can finalize
+    direct_vm.sender = direct_bob
+    res = contract.finalize(cid)
+    assert "FIXED_EQUIVALENT" in res
+    
+    updated_claim = contract.get_claim(cid)
+    assert updated_claim["state"] == "FIXED_EQUIVALENT"
+    
+    # Recipient should get credit
+    assert int(contract.get_credit("0x" + direct_bob.hex())) == 10**16
+
+
+def test_finalize_before_deadline_reverts(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+    
+    cid = contract.create_claim("GHSA-1234", "owner/repo", "2222222222222222222222222222222222222222", "0x" + direct_bob.hex())
+    
+    # Mock pending appeal state with future timeout
+    claim = contract.claims[cid]
+    claim.state = "PENDING_APPEAL"
+    claim.appeal_state = "FIXED_EQUIVALENT"
+    claim.appeal_deadline = "9999999999" # Future
+    contract.claims[cid] = claim
+    
+    with pytest.raises(Exception, match="Appeal window not yet expired"):
+        contract.finalize(cid)
+
