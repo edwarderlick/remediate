@@ -268,6 +268,15 @@ class RemediateContract(gl.Contract):
                 if clean_aff_repo == target_repo:
                     repo_is_affected = True
 
+            # Also check references for the repo URL (common in PyPI/NPM OSVs)
+            if not repo_is_affected:
+                for ref in advisory.get("references", []):
+                    ref_url = ref.get("url", "") or ""
+                    clean_ref = ref_url.replace("https://github.com/", "").replace("http://github.com/", "").replace("github.com/", "").replace("https://", "").replace("http://", "").strip("/").lower().rstrip(".git")
+                    if clean_ref == target_repo or clean_ref.startswith(target_repo + "/"):
+                        repo_is_affected = True
+                        break
+
                 for rng in aff.get("ranges", []):
                     if not isinstance(rng, dict):
                         continue
