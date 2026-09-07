@@ -57,12 +57,14 @@ class Claim:
 
 
 class RemediateContract(gl.Contract):
+    operator: Address
     claims: TreeMap[str, Claim]
     credits: TreeMap[str, u256]
     claim_list: DynArray[str]
     withdrawing: bool
 
     def __init__(self):
+        self.operator = gl.message.sender_address
         self.withdrawing = False
 
     def _credit(self, to: Address, amount: u256) -> None:
@@ -326,7 +328,7 @@ INSTRUCTIONS:
                 else:
                     return STATE_NOT_FIXED
             except Exception:
-                return STATE_INSUFFICIENT
+                return NETWORK_ERROR_SENTINEL  # (Changed from STATE_INSUFFICIENT)
 
         # Multi-node consensus strictly enforced across validator committee
         try:
@@ -544,3 +546,31 @@ INSTRUCTIONS:
     @gl.public.view
     def list_claim_ids(self) -> list:
         return self.claim_list
+
+    @gl.public.write
+    def resolve_escalation(self, claim_id: str, final_status: str) -> str:
+        """Resolves an escalated claim. Only the operator can call this."""
+        if str(gl.message.sender_address).lower() != str(self.operator).lower():
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Unauthorized: only operator can resolve escalations")
+
+        cid = str(claim_id or "").strip()
+        if cid not in self.claims:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim not found: {cid}")
+
+        claim = self.claims[cid]
+        if claim.state != STATE_ESCALATED:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim is not in ESCALATED state")
+
+        if final_status not in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT, STATE_NOT_FIXED, STATE_INSUFFICIENT):
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid final status")
+
+        claim.state = final_status
+        claim.rationale = f"Operator resolved escalation: {final_status}"
+        self.claims[cid] = claim
+
+        if final_status in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT):
+            self._credit(claim.recipient, claim.amount)
+        else:
+            self._credit(claim.funder, claim.amount)
+
+        return json.dumps({"ok": True, "state": final_status})
