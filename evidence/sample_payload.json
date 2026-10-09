@@ -1,0 +1,38 @@
+{
+  "advisory_id": "GHSA-1234-5678-90ab",
+  "owner_repo": "alice/target-repo",
+  "commit_sha": "2222222222222222222222222222222222222222",
+  "recipient": "0x0000000000000000000000000000000000000000",
+  "mock_osv_payload": {
+    "schema_version": "1.6.0",
+    "id": "GHSA-1234-5678-90ab",
+    "details": "Vulnerability introduced in an earlier commit. Remediated by checking exact patch inclusion.",
+    "affected": [
+      {
+        "package": {
+          "name": "sample-pkg"
+        },
+        "ranges": [
+          {
+            "type": "GIT",
+            "repo": "https://github.com/alice/target-repo",
+            "events": [
+              {
+                "introduced": "1111111111111111111111111111111111111111"
+              },
+              {
+                "fixed": "2222222222222222222222222222222222222222"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "references": [
+      {
+        "type": "WEB",
+        "url": "https://github.com/alice/target-repo/commit/2222222222222222222222222222222222222222"
+      }
+    ]
+  }
+}
