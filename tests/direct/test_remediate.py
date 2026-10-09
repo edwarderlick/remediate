@@ -12,7 +12,7 @@ import pytest
 import concurrent.futures
 
 
-def test_concurrent_claims_return_distinct_deterministic_ids(direct_vm, direct_deploy, direct_alice):
+def test_sequential_claims_return_distinct_deterministic_ids(direct_vm, direct_deploy, direct_alice):
     direct_vm.sender = direct_alice
     direct_vm.value = 10**16 # 0.01 GEN
     contract = direct_deploy("contract/remediate.py")

@@ -10,9 +10,12 @@ Funders lock native GEN against a specific repository and vulnerability advisory
 
 ### 🌐 Live Protocol Info
 - **Live App:** [https://remediate-five.vercel.app/](https://remediate-five.vercel.app/)
-- **Studio Next Contract Address:** `0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27`
+- **Repository:** [GitHub Repository](https://github.com/edwarderlick/remediate)
+- **Studio Next Contract Address:** [0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27](https://explorer-studio-dev.genlayer.com/address/0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27)
+- **Deployment Transaction:** [0x42d5c27f3d32b1dc80e6d5fa452d4b3e6e266cd041e6824619959a21f68e2ce7](https://explorer-studio-dev.genlayer.com/tx/0x42d5c27f3d32b1dc80e6d5fa452d4b3e6e266cd041e6824619959a21f68e2ce7)
 - **Chain ID:** `61997`
 - **RPC Endpoint:** `https://studio-dev.genlayer.com/api`
+- **Source Code Hash (SHA-256):** `975c774dd2942d98e9ad7058e889d0e9ffda9bf35c398dcc75b1ba6804c2fbe3` *(Note: GitHub stores LF line endings while the deployed Windows source used CRLF, so the raw SHA-256 differs despite identical normalized content)*
 
 ---
 
@@ -28,7 +31,7 @@ graph TD
     C -->|Funder Calls cancel| D[STATE: CANCELED]
     D -->|Credits 100% to Funder| W[credits mapping updated]
     
-    C -->|Anyone Calls resolve| E[Multi-Validator strict_eq Consensus]
+    C -->|Recipient Calls resolve| E[Multi-Validator strict_eq Consensus]
     E --> F[Fetch OSV Advisory JSON]
     
     F -->|SHA in ranges.events.fixed for target_repo| G[STATE: FIXED_EXACT]
@@ -42,10 +45,11 @@ graph TD
     I -->|Remediated == False| K[STATE: NOT_FIXED]
     K -->|Credits 100% Refund to Funder| W
     
-    F -->|OSV 404 / Missing Data / Rate Limit| L[STATE: INSUFFICIENT]
+    F -->|OSV Rate Limit / Connection Error| R[Revert for Retry]
+    F -->|OSV 404 / Missing Data| L[STATE: INSUFFICIENT]
     L -->|Fail-Closed: 100% Refund to Funder| W
     
-    H -->|Patch Empty / >25KB / 404| L
+    H -->|Patch Empty / >10KB / 404| L
     
     W -->|Recipient or Funder Calls withdraw| M[emit_transfer to Caller]
 ```
@@ -73,20 +77,20 @@ graph TD
 | `PENDING_APPEAL` | LLM consensus approved patch | Funds locked for 24-hour window |
 | `FIXED_EQUIVALENT` | `finalize()` called after 24h `PENDING_APPEAL` | 100% bounty credited to Recipient |
 | `NOT_FIXED` | LLM consensus: patch does not fix advisory | 100% refund credited to Funder |
-| `INSUFFICIENT` | OSV 404, patch missing, VM crash, or consensus failure | 100% refund credited to Funder |
+| `INSUFFICIENT` | OSV 404, patch missing, >10KB, or consensus failure | 100% refund credited to Funder |
 | `CANCELED` | Funder calls `cancel()` after 7-day lock | 100% refund credited to Funder |
 
 ---
 
-## ⚡ Historical StudioNet Settlement Proofs
+## ⚡ Historical StudioNet Settlement Proofs (Legacy)
 
-Real transactions finalized on the legacy GenLayer StudioNet demonstrating the fail-closed state machine:
+Real transactions finalized on the legacy GenLayer StudioNet demonstrating the fail-closed state machine. **Note: These are historical and do not exist on Studio Next.**
 
 | Resolution Path | Target | Transaction Hash | Result |
 | :--- | :--- | :--- | :--- |
-| **FIXED_EXACT** | `curl/curl` (`OSV-2017-1`) | `0x05b485473a9d8e365f68a4b1e97bb566cd0294d48fd4be369cc7033bb744aa57` | Recipient paid `0.02 GEN`. Exact commit verified in OSV `fixed` events. |
-| **INSUFFICIENT** | Missing Advisory (404) | `0x6cfe87b8ab53ec0c06219bd7ed049c2f1a17e53ab56330cebece766cf4402df4` | Funder refunded `0.01 GEN`. Failed fetch safely failed closed. |
-| **CANCELED & WITHDRAWN** | Open Escrow Hatch | `0xc48b2bfc6922b0d24c4e65fab2a36f585cd89f6f34594f5fa4bab78f84293c1f` | Funder canceled and withdrew `0.05 GEN` with zero remaining balance. |
+| **FIXED_EXACT** | `curl/curl` (`OSV-2017-1`) | [`0x05b485473a9d8e365f68a4b1e97bb566cd0294d48fd4be369cc7033bb744aa57`](https://explorer-studio.genlayer.com/tx/0x05b485473a9d8e365f68a4b1e97bb566cd0294d48fd4be369cc7033bb744aa57) | Recipient paid `0.02 GEN`. Exact commit verified in OSV `fixed` events. |
+| **INSUFFICIENT** | Missing Advisory (404) | [`0x6cfe87b8ab53ec0c06219bd7ed049c2f1a17e53ab56330cebece766cf4402df4`](https://explorer-studio.genlayer.com/tx/0x6cfe87b8ab53ec0c06219bd7ed049c2f1a17e53ab56330cebece766cf4402df4) | Funder refunded `0.01 GEN`. Failed fetch safely failed closed. |
+| **CANCELED & WITHDRAWN** | Open Escrow Hatch | [`0xc48b2bfc6922b0d24c4e65fab2a36f585cd89f6f34594f5fa4bab78f84293c1f`](https://explorer-studio.genlayer.com/tx/0xc48b2bfc6922b0d24c4e65fab2a36f585cd89f6f34594f5fa4bab78f84293c1f) | Funder canceled and withdrew `0.05 GEN` with zero remaining balance. |
 
 ---
 
@@ -101,7 +105,7 @@ pytest tests/direct/test_remediate.py -v
 ```
 
 Tests included:
-- `test_concurrent_claims_return_distinct_deterministic_ids` — 5 concurrent claims produce 5 unique `claim-0x...` IDs
+- `test_sequential_claims_return_distinct_deterministic_ids` — 5 sequential claims produce 5 unique `claim-0x...` IDs
 - `test_invalid_commit_sha_reverts` — Malformed SHA (< 40 chars) raises `UserError`
 - `test_low_deposit_reverts` — Deposit below 0.001 GEN minimum raises `UserError`
 - `test_cancel_credits_funder_only` — Only the funder can cancel; unauthorized callers are rejected
