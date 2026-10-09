@@ -17,6 +17,7 @@ export default function CreateEscrow() {
   const { chainId } = useAccount();
   const { switchChain } = useSwitchChain();
   const isWrongChain = chainId !== STUDIO_NEXT_CHAIN_ID;
+  const isUnsafeLegacyContract = CONTRACT_ADDRESS.toLowerCase() === "0x1ddff0ac420ac06902db9773204d3ebfa2c15f27";
   
   const [advisoryId, setAdvisoryId] = useState("");
   const [repo, setRepo] = useState("");
@@ -34,7 +35,7 @@ export default function CreateEscrow() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || !isFormValid || !client) return;
+    if (isLoading || !isFormValid || !client || isUnsafeLegacyContract) return;
 
     setError("");
     setSuccess("");
@@ -72,6 +73,11 @@ export default function CreateEscrow() {
       <p className="text-gray-400 mb-8">Lock test GEN against a vulnerability patch.</p>
 
       <form onSubmit={handleSubmit} className="border border-white/10 bg-surface/50 backdrop-blur-md p-6 space-y-6 shadow-2xl">
+        {isUnsafeLegacyContract && (
+          <div role="alert" className="bg-state-fail/10 border border-state-fail text-state-fail p-3 text-sm">
+            Escrow creation is paused for this contract. Its on-chain clock recorded invalid deadlines; wait for a verified replacement deployment.
+          </div>
+        )}
         {error && <div className="bg-state-fail/10 border border-state-fail text-state-fail p-3 text-sm font-mono">{error}</div>}
         {success && <div className="bg-state-exact/10 border border-state-exact text-state-exact p-3 text-sm font-mono">{success}</div>}
 
@@ -145,7 +151,7 @@ export default function CreateEscrow() {
         ) : (
           <button 
             type="submit"
-            disabled={!isFormValid || isLoading}
+            disabled={!isFormValid || isLoading || isUnsafeLegacyContract}
             className="w-full bg-white text-black font-bold uppercase tracking-wider p-4 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isLoading ? "Pending..." : "Lock Escrow"}

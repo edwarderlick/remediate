@@ -10,6 +10,7 @@ Tests:
 import json
 import pytest
 import concurrent.futures
+from datetime import datetime, timezone
 
 
 def test_sequential_claims_return_distinct_deterministic_ids(direct_vm, direct_deploy, direct_alice):
@@ -301,4 +302,40 @@ def test_finalize_before_deadline_reverts(direct_vm, direct_deploy, direct_alice
     
     with pytest.raises(Exception, match="Appeal window not yet expired"):
         contract.finalize(cid)
+
+
+def test_live_clock_create_resolve_and_finalize_after_window(direct_vm, direct_deploy, direct_alice, direct_bob):
+    start = "2026-10-09T12:00:00+00:00"
+    start_unix = int(datetime.fromisoformat(start).timestamp())
+    direct_vm.warp(start)
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+
+    fixed_sha = "544bfdebea2a9e8be1c01fc7954cd49638fe2803"
+    cid = contract.create_claim("OSV-2017-1", "curl/curl", fixed_sha, "0x" + direct_bob.hex())
+    claim = contract.get_claim(cid)
+    assert int(claim["created_at"]) == start_unix
+    assert int(claim["cancel_deadline"]) == start_unix + 604800
+
+    advisory = {
+        "id": "OSV-2017-1",
+        "affected": [{"ranges": [{"type": "GIT", "repo": "https://github.com/curl/curl.git", "events": [{"fixed": fixed_sha}]}]}],
+    }
+    direct_vm.mock_web("https://api.osv.dev/v1/vulns/OSV-2017-1", {"body": json.dumps(advisory), "status": 200, "method": "GET"})
+    direct_vm.sender = direct_bob
+    direct_vm.value = 0
+    contract.resolve(cid)
+    claim = contract.get_claim(cid)
+    assert claim["state"] == "PENDING_APPEAL"
+    assert claim["appeal_state"] == "FIXED_EXACT"
+    assert int(claim["appeal_deadline"]) == start_unix + 86400
+
+    with pytest.raises(Exception, match="Appeal window not yet expired"):
+        contract.finalize(cid)
+
+    direct_vm.warp("2026-10-10T12:00:01+00:00")
+    contract.finalize(cid)
+    assert contract.get_claim(cid)["state"] == "FIXED_EXACT"
+    assert int(contract.get_credit("0x" + direct_bob.hex())) == 10**16
 

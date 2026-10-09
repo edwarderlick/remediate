@@ -4,7 +4,7 @@ import { studioDevnet } from "genlayer-js/chains";
 async function main() {
     const client = createClient({ chain: studioDevnet });
     try {
-        const contractAddress = "0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27";
+        const contractAddress = "0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF";
         const code = await client.getContractCode(contractAddress);
         const schema = await client.getContractSchemaForCode(code);
         

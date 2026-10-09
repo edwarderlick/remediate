@@ -11,11 +11,18 @@ Funders lock native GEN against a specific repository and vulnerability advisory
 ### 🌐 Live Protocol Info
 - **Live App:** [https://remediate-five.vercel.app/](https://remediate-five.vercel.app/)
 - **Repository:** [GitHub Repository](https://github.com/edwarderlick/remediate)
-- **Studio Next Contract Address:** [0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27](https://explorer-studio-dev.genlayer.com/address/0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27)
-- **Deployment Transaction:** [0x42d5c27f3d32b1dc80e6d5fa452d4b3e6e266cd041e6824619959a21f68e2ce7](https://explorer-studio-dev.genlayer.com/tx/0x42d5c27f3d32b1dc80e6d5fa452d4b3e6e266cd041e6824619959a21f68e2ce7)
+- **Studio Next Contract Address:** [0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF](https://explorer-studio-dev.genlayer.com/address/0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF)
+- **Deployment Transaction:** [0x48fd35ff51c75b38baaaedb9e1cfea7a2319fd5e9ba318a7cab885e790e28dbe](https://explorer-studio-dev.genlayer.com/tx/0x48fd35ff51c75b38baaaedb9e1cfea7a2319fd5e9ba318a7cab885e790e28dbe)
 - **Chain ID:** `61997`
 - **RPC Endpoint:** `https://studio-dev.genlayer.com/api`
-- **Source Code Hash (SHA-256):** `975c774dd2942d98e9ad7058e889d0e9ffda9bf35c398dcc75b1ba6804c2fbe3` *(Note: GitHub stores LF line endings while the deployed Windows source used CRLF, so the raw SHA-256 differs despite identical normalized content)*
+- **Deployed Source SHA-256:** `e9a56ddcda59c5e7e07e14740493d993e4afc3bfb17c592bf92f5e7117a347a3` (deployed and local source bytes match exactly)
+
+The previous contract [0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27](https://explorer-studio-dev.genlayer.com/address/0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27) recorded zero-valued timestamps. Do not create claims there. An existing 1 GEN claim remains unresolved; deploying the replacement does not move or recover its funds.
+
+### On-Chain Validation
+
+- **Production exact-fix claim:** `claim-0x1e6fbc48e290d48b`, [create transaction](https://explorer-studio-dev.genlayer.com/tx/0x6427f314ce0803b5d9baa5dffcb87338e6f2ebf75c7fc847f2246aab2828f863), [resolve transaction](https://explorer-studio-dev.genlayer.com/tx/0xba957a7ff5c3dc22d393d226f0f7588384a7b8746efe36f13267ac7faba239ea). Both finalized successfully. The claim is `PENDING_APPEAL` with `FIXED_EXACT` verdict and a real 24-hour deadline of 2026-10-10 11:05:56 UTC. Production finalization and withdrawal remain pending until that deadline.
+- **Short-window canary (separate contract):** [contract](https://explorer-studio-dev.genlayer.com/address/0x9e440127500A4e65e4BF41494b7cf3D4bBF49BC3), [deploy](https://explorer-studio-dev.genlayer.com/tx/0xdb4d3c381498da7dbc039d1c819d0362162179ea511d262c9bde02de5172fc21), [create](https://explorer-studio-dev.genlayer.com/tx/0xdaeed5145fe66045bd07fd2342c193e9afc665a5201325268ec7cb9f9779dab3), [resolve](https://explorer-studio-dev.genlayer.com/tx/0xba639a024f059d539f7cfdf00bea06da100dcb592125a2a71ae7dfc54f7c8ac5), [finalize](https://explorer-studio-dev.genlayer.com/tx/0xc03ed6b74bdfe8b1926a97d73edcbb4abc1a408d57e7e0f3aa8e448968ae78ed), [withdraw](https://explorer-studio-dev.genlayer.com/tx/0x25e10b8cce90da8648e725c9c1f657578f750690c17cabcf6c9f7ab46cadefcb). This canary changes only the appeal window from 24 hours to 90 seconds; its native withdrawal finalized and recipient credit returned to zero. It is not the production contract.
 
 ---
 
@@ -150,7 +157,7 @@ pytest tests/unit/ -v
    ```
    Open `.env.local` and set the contract address:
    ```env
-   NEXT_PUBLIC_CONTRACT_ADDRESS=0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27
+   NEXT_PUBLIC_CONTRACT_ADDRESS=0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF
    ```
 
 3. **Run Development Server**

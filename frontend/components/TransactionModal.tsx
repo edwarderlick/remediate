@@ -37,8 +37,8 @@ export default function TransactionModal({ tx, userValue, onDone, onClose }: Pro
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#111] border border-[#333] max-w-md w-full relative">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="max-w-md w-full max-h-[calc(100vh-6rem)] overflow-y-auto relative">
         <button 
           onClick={onClose}
           className="absolute -top-12 right-0 text-white hover:text-gray-300 font-mono text-sm"

@@ -15,11 +15,6 @@ except NameError:
     u256 = gl_types.u256
 
 try:
-    import genlayer.vm as gl_vm
-except ImportError:
-    gl_vm = None
-
-try:
     import genlayer.storage as genlayer_storage
     from genlayer.storage import DynArray, TreeMap
     allow_storage = genlayer_storage.allow
@@ -81,28 +76,11 @@ class Claim:
 
 
 def get_now_unix() -> int:
-    try:
-        if gl_vm is not None:
-            raw = gl_vm.get_timestamp()
-            if isinstance(raw, datetime):
-                return int(raw.timestamp())
-            return parse_dt_to_unix(raw)
-    except Exception:
-        pass
-    try:
-        raw = gl.vm.get_timestamp()
-        if isinstance(raw, datetime):
-            return int(raw.timestamp())
-        return parse_dt_to_unix(raw)
-    except Exception:
-        pass
-    try:
-        raw = getattr(gl, "message_raw", None)
-        if isinstance(raw, dict):
-            return parse_dt_to_unix(raw.get("datetime", ""))
-    except Exception:
-        pass
-    return 0
+    # GenVM pins the standard clock to the transaction timestamp on every validator.
+    now = int(datetime.now(timezone.utc).timestamp())
+    if now <= 0:
+        raise gl.vm.UserError(f"{ERROR_EXPECTED} Transaction timestamp unavailable")
+    return now
 
 def get_nonce() -> str:
     try:

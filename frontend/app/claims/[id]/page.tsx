@@ -182,6 +182,10 @@ export default function EscrowDocket() {
   const stateName = typeof claim?.state === "number" ? stateMap[claim.state] : claim?.state;
   const isOpen = stateName === "OPEN";
   const isPendingAppeal = stateName === "PENDING_APPEAL";
+  const hasValidTimestamp = Number(claim?.created_at) >= 1600000000;
+  const appealDeadline = Number(claim?.appeal_deadline);
+  const hasValidAppealDeadline = Number.isFinite(appealDeadline) && appealDeadline > Number(claim?.created_at);
+  const canFinalize = hasValidTimestamp && hasValidAppealDeadline && currentTime >= appealDeadline;
   const funderAddress = claim?.funder || claim?.funder_address || claim?.sender_address || "";
   const isFunder = Boolean(address && funderAddress && address.toLowerCase() === funderAddress.toLowerCase());
   const isRecipient = Boolean(address && claim?.recipient && address.toLowerCase() === claim.recipient.toLowerCase());
@@ -223,8 +227,11 @@ export default function EscrowDocket() {
       <div className="border border-white/10 bg-surface/50 backdrop-blur-md p-8 shadow-2xl">
         <div className="flex justify-between items-start mb-8 border-b border-lines pb-6">
           <div>
-            <h1 className="text-3xl font-bold font-mono tracking-tight mb-2 text-white">Docket #{String(id).slice(0, 8)}</h1>
+            <h1 className="text-xl md:text-2xl font-bold font-mono mb-2 text-white break-all">Docket #{String(id)}</h1>
             <StatusBadge state={stateName as any} />
+            {isPendingAppeal && claim?.appeal_state && (
+              <p className="mt-2 text-sm font-mono text-gray-300">Verdict: {claim.appeal_state}</p>
+            )}
           </div>
           <div className="text-right">
             <p className="text-sm font-mono text-gray-400 uppercase tracking-widest mb-1">Premium Lock</p>
@@ -324,9 +331,18 @@ export default function EscrowDocket() {
               <Terminal className="w-4 h-4" /> Deadlines
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-sm">
+              {(!hasValidTimestamp || (isPendingAppeal && !hasValidAppealDeadline)) && (
+                <p className="md:col-span-2 border border-state-fail p-4 text-state-fail">
+                  This claim has an invalid on-chain timestamp. Deadline actions are disabled; do not spend fees retrying them.
+                </p>
+              )}
               <div className="border border-lines p-4 bg-background">
                 <p className="text-gray-500 mb-1">Cancellation Time-Lock</p>
-                {claim?.cancel_deadline ? (
+                {!isOpen ? (
+                  <p className="text-gray-500">Only available while the claim is open</p>
+                ) : !hasValidTimestamp ? (
+                  <p className="text-state-fail">Invalid on-chain timestamp</p>
+                ) : claim?.cancel_deadline ? (
                   <p className={`text-white ${currentTime >= parseInt(claim.cancel_deadline) ? "text-state-fail" : ""}`}>
                     {currentTime >= parseInt(claim.cancel_deadline)
                       ? "UNLOCKED (Funder can cancel)"
@@ -338,7 +354,9 @@ export default function EscrowDocket() {
               </div>
               <div className="border border-lines p-4 bg-background">
                 <p className="text-gray-500 mb-1">Appeal Time-Lock</p>
-                {claim?.appeal_deadline ? (
+                {!hasValidTimestamp || (isPendingAppeal && !hasValidAppealDeadline) ? (
+                  <p className="text-state-fail">Invalid on-chain timestamp</p>
+                ) : claim?.appeal_deadline ? (
                   <p className={`text-white ${currentTime >= parseInt(claim.appeal_deadline) ? "text-state-exact" : ""}`}>
                     {currentTime >= parseInt(claim.appeal_deadline)
                       ? "UNLOCKED (Anyone can finalize)"
@@ -412,7 +430,7 @@ export default function EscrowDocket() {
                 {isOpen && isFunder && (
           <button 
             onClick={handleCancel}
-            disabled={!!actionType || (claim?.cancel_deadline && currentTime < parseInt(claim.cancel_deadline))}
+            disabled={!!actionType || !hasValidTimestamp || (claim?.cancel_deadline && currentTime < parseInt(claim.cancel_deadline))}
             className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
           >
             {actionType === "cancel" ? "Pending..." : "Cancel Escrow"}
@@ -422,7 +440,7 @@ export default function EscrowDocket() {
         {isPendingAppeal && (
           <button 
             onClick={handleFinalize}
-            disabled={!!actionType || (claim?.appeal_deadline && currentTime < parseInt(claim.appeal_deadline))}
+            disabled={!!actionType || !canFinalize}
             className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:hover:bg-white"
           >
             {actionType === "finalize" ? "Pending..." : "Finalize Verdict"}
@@ -432,7 +450,7 @@ export default function EscrowDocket() {
         {isPendingAppeal && isFunder && (
           <button 
             onClick={handleAppeal}
-            disabled={!!actionType || (claim?.appeal_deadline && currentTime >= parseInt(claim.appeal_deadline))}
+            disabled={!!actionType || !hasValidTimestamp || (claim?.appeal_deadline && currentTime >= parseInt(claim.appeal_deadline))}
             className="border border-state-equiv text-state-equiv font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-equiv/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
           >
             {actionType === "appeal" ? "Pending..." : "Appeal Verdict"}
@@ -443,7 +461,7 @@ export default function EscrowDocket() {
         {stateName === "ESCALATED" && (
           <button 
             onClick={handleFinalizeEscalation}
-            disabled={!!actionType || (claim?.escalation_deadline && currentTime < parseInt(claim.escalation_deadline))}
+            disabled={!!actionType || !hasValidTimestamp || (claim?.escalation_deadline && currentTime < parseInt(claim.escalation_deadline))}
             className="border border-state-fail text-state-fail font-bold uppercase tracking-wider px-6 py-3 hover:bg-state-fail/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
           >
             {actionType === "finalize_escalation" ? "Pending..." : "Timeout Escalation"}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "@genlayer/transaction-kit-react/styles.css";
 import { Providers } from "@/components/Providers";
 import Header from "@/components/Header";
 

@@ -1,0 +1,1 @@
+contract/remediate.py -text whitespace=cr-at-eol,-blank-at-eol
