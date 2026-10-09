@@ -1,3 +1,3 @@
-genlayer-py==0.9.0
-genlayer-test==0.19.2
+genlayer-py @ git+https://github.com/genlayerlabs/genlayer-py@fd8a9311a2370e4fe6b8194e361112b5d153cfed
+genlayer-test @ git+https://github.com/genlayerlabs/genlayer-testing-suite@d84591b58746a6202b56b720199ce7b9f12fd666
 pytest==8.3.4

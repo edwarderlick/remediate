@@ -9,7 +9,7 @@ def test_full_lifecycle_success(direct_vm, direct_deploy, direct_alice, direct_b
     osv_res = json.dumps({"id": "GHSA-1234", "summary": "Fix buffer overflow", "details": "Buffer overflow", "affected": [{"ranges": [{"type": "GIT", "repo": "https://github.com/alice/repo", "events": [{"fixed": "2222222222222222222222222222222222222222"}]}]}]})
     direct_vm.mock_web("https://api.osv.dev/v1/vulns/GHSA-1234", {"body": osv_res, "status": 200, "method": "GET"})
     direct_vm.mock_web("https://github.com/alice/repo/commit/3333333333333333333333333333333333333333.patch", {"body": "diff", "status": 200, "method": "GET"})
-    direct_vm.mock_llm("(?s).*", '{"remediated": true}')
+    direct_vm.mock_llm("(?s).*", json.dumps('{"remediated": true}'))
     
     direct_vm.sender = direct_bob
     contract.resolve(cid)
@@ -33,7 +33,7 @@ def test_full_appeal_timeout_funder_withdraw(direct_vm, direct_deploy, direct_al
     osv_res = json.dumps({"id": "GHSA-1234", "summary": "Fix buffer overflow", "details": "Buffer overflow", "affected": [{"ranges": [{"type": "GIT", "repo": "https://github.com/alice/repo", "events": [{"fixed": "2222222222222222222222222222222222222222"}]}]}]})
     direct_vm.mock_web("https://api.osv.dev/v1/vulns/GHSA-1234", {"body": osv_res, "status": 200, "method": "GET"})
     direct_vm.mock_web("https://github.com/alice/repo/commit/3333333333333333333333333333333333333333.patch", {"body": "diff", "status": 200, "method": "GET"})
-    direct_vm.mock_llm("(?s).*", '{"remediated": true}')
+    direct_vm.mock_llm("(?s).*", json.dumps('{"remediated": true}'))
     
     direct_vm.sender = direct_bob
     contract.resolve(cid)
