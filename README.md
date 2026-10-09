@@ -34,20 +34,27 @@ graph TD
     C -->|Recipient Calls resolve| E[Multi-Validator strict_eq Consensus]
     E --> F[Fetch OSV Advisory JSON]
     
-    F -->|SHA in ranges.events.fixed for target_repo| G[STATE: PENDING_APPEAL]
-    G -->|24 Hours Pass -> Recipient Calls finalize| W[credits mapping updated]
+    F -->|OSV Rate Limit / Connection Error| R[Revert for Retry]
+    
+    F -->|SHA in ranges.events.fixed for target_repo| G[Verdict: FIXED_EXACT]
+    G --> P[STATE: PENDING_APPEAL]
+    
+    F -->|OSV 404 / Missing Data| L[Verdict: INSUFFICIENT]
+    L --> P
     
     F -->|SHA Not in OSV| H[Fetch Bounded Git Diff Patch]
     H --> I[LLM Equivalence Adjudication]
-    I -->|Remediated == True / False| J[STATE: PENDING_APPEAL]
-    J -->|24 Hours Pass -> Recipient Calls finalize| W
-    J -->|24 Hours Pass -> Funder Calls finalize| W
+    I -->|Remediated == True| J[Verdict: FIXED_EQUIVALENT]
+    J --> P
+    I -->|Remediated == False| K[Verdict: NOT_FIXED]
+    K --> P
     
-    F -->|OSV Rate Limit / Connection Error| R[Revert for Retry]
-    F -->|OSV 404 / Missing Data| L[STATE: INSUFFICIENT]
-    L -->|Fail-Closed: 100% Refund to Funder| W
+    H -->|Patch >10KB / 404 HTML| L
     
-    H -->|Patch Empty / >10KB / 404| L
+    P -->|24 Hours Pass -> Anyone Calls finalize| W
+    P -->|Funder Calls appeal| X[STATE: ESCALATED]
+    X -->|7 Days Pass -> Anyone Calls finalize_escalation| Y[STATE: NOT_FIXED]
+    Y --> W
     
     W -->|Recipient or Funder Calls withdraw| M[emit_transfer to Caller]
 ```
@@ -58,11 +65,11 @@ graph TD
 
 ### Key Security Properties
 
-- **Fail-Closed by Default:** Crashing inputs, 404s, timeouts, or consensus failures force the state to `INSUFFICIENT` and refund the funder.
+- **Fail-Closed by Default:** Crashing inputs, 404s, or consensus logic failures result in an `INSUFFICIENT` verdict that refunds the funder after the appeal window. Transient fetch failures (rate limits, timeouts) revert the transaction to allow retrying.
 - **Rug-Pull Protection:** Funders cannot cancel the escrow immediately. A strict 7-day cancellation time-lock ensures the developer has a fair window to submit a patch.
-- **Equivalence Appeals:** When consensus evaluates a patch, the claim enters a 24-hour `PENDING_APPEAL` state before credits are allocated.
-- **CEI Pattern (Checks-Effects-Interactions):** In `withdraw()`, the user credit balance is zeroed to `0` *before* the external `emit_transfer` call. If the transfer fails, the entire transaction reverts atomically. Re-entrancy is impossible.
-- **Pull-Over-Push Settlement:** Payouts are never pushed during `resolve()` or `cancel()`. Credits accumulate in a `credits` mapping and users pull their own funds via `withdraw()`, eliminating reentrancy vectors.
+- **Equivalence Appeals:** When consensus evaluates a patch (yielding any definitive verdict, including `INSUFFICIENT`), the claim enters a 24-hour `PENDING_APPEAL` state before credits are allocated.
+- **CEI Pattern (Checks-Effects-Interactions):** In `withdraw()`, the user credit balance is zeroed to `0` *before* the external `emit_transfer` call. If the transfer fails, the entire transaction reverts atomically. Re-entrancy is prevented.
+- **Pull-Over-Push Settlement:** Payouts are never pushed during `resolve()` or `cancel()`. Credits accumulate in a `credits` mapping and users pull their own funds via `withdraw()`.
 - **Deterministic Claim IDs:** Claim IDs are derived from a SHA-256 hash of `sender + recipient + advisory + repo + commit + datetime + nonce`, providing collision resistance.
 - **Prompt Injection Defense:** The LLM fallback prompt explicitly instructs validators to ignore any directives embedded in the diff patch text.
 
@@ -71,12 +78,13 @@ graph TD
 | State | Trigger | Settlement |
 | :--- | :--- | :--- |
 | `OPEN` | Initial state after `create_claim` | Funds locked in contract |
-| `PENDING_APPEAL` | Consensus resolves claim | Funds locked for 24-hour window |
-| `FIXED_EXACT` | `finalize()` called after 24h, exact commit found | 100% bounty credited to Recipient |
-| `FIXED_EQUIVALENT` | `finalize()` called after 24h, LLM equivalent | 100% bounty credited to Recipient |
-| `NOT_FIXED` | `finalize()` called after 24h, LLM not equivalent | 100% refund credited to Funder |
-| `INSUFFICIENT` | OSV 404, patch missing, >10KB, or consensus failure | 100% refund credited to Funder |
-| `CANCELED` | Funder calls `cancel()` after 7-day lock | 100% refund credited to Funder |
+| `PENDING_APPEAL` | `resolve()` called by recipient | Funds locked for 24-hour window |
+| `FIXED_EXACT` | `finalize()` called by anyone after 24h, exact commit found | 100% bounty credited to Recipient |
+| `FIXED_EQUIVALENT` | `finalize()` called by anyone after 24h, LLM equivalent | 100% bounty credited to Recipient |
+| `NOT_FIXED` | `finalize()` called by anyone after 24h, LLM not equivalent | 100% refund credited to Funder |
+| `INSUFFICIENT` | `finalize()` called by anyone after 24h, OSV 404/patch >10KB | 100% refund credited to Funder |
+| `ESCALATED` | `appeal()` called by funder during `PENDING_APPEAL` | Resolution halted for manual review |
+| `CANCELED` | `cancel()` called by funder after 7-day lock | 100% refund credited to Funder |
 
 ---
 
@@ -139,7 +147,10 @@ pytest tests/unit/ -v
 2. **Configure Environment**
    ```bash
    cp .env.example .env.local
-   # .env.local is pre-configured with the live contract address
+   ```
+   Open `.env.local` and set the contract address:
+   ```env
+   NEXT_PUBLIC_CONTRACT_ADDRESS=0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27
    ```
 
 3. **Run Development Server**
