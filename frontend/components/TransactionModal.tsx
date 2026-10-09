@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { useWalletClient, useAccount } from "wagmi";
-import { createTransactionKit, SubmitInput, TrackedStatus } from "@genlayer/transaction-kit";
+import { createTransactionKit, type Eip1193Provider, type SubmitInput, type TrackedStatus } from "@genlayer/transaction-kit";
 import { GenLayerTransactionPanel } from "@genlayer/transaction-kit-react";
 import { studioDevnet } from "genlayer-js/chains";
 
@@ -21,7 +21,7 @@ export default function TransactionModal({ tx, userValue, onDone, onClose }: Pro
     if (!walletClient || !address) return null;
     return createTransactionKit({
       chain: studioDevnet,
-      provider: walletClient as any,
+      provider: walletClient as Eip1193Provider,
       account: address,
     });
   }, [walletClient, address]);

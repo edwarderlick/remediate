@@ -29,11 +29,16 @@ export default function EscrowDocket() {
   const [actionType, setActionType] = useState<string | null>(null);
   const [txInput, setTxInput] = useState<SubmitInput | null>(null);
   const [message, setMessage] = useState("");
-  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(timer);
+    const updateTime = () => setCurrentTime(Math.floor(Date.now() / 1000));
+    const initialUpdate = setTimeout(updateTime, 0);
+    const timer = setInterval(updateTime, 1000);
+    return () => {
+      clearTimeout(initialUpdate);
+      clearInterval(timer);
+    };
   }, []);
 
   const fetchClaim = useCallback(async () => {
