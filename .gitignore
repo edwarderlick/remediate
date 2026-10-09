@@ -26,3 +26,5 @@ osv_go/
 osv_npm/
 osv_pypi/
 osv_*/
+
+.vercel

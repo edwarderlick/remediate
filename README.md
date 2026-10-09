@@ -21,7 +21,7 @@ Funders lock native GEN against a specific repository and vulnerability advisory
 
 ## 🏗️ Architecture & State Machine
 
-Remediate enforces an unbreachable **fail-closed state machine** where native GEN cannot be trapped or lost.
+Remediate implements a **fail-closed state machine** designed to refund the funder on errors.
 
 ```mermaid
 graph TD
@@ -34,16 +34,14 @@ graph TD
     C -->|Recipient Calls resolve| E[Multi-Validator strict_eq Consensus]
     E --> F[Fetch OSV Advisory JSON]
     
-    F -->|SHA in ranges.events.fixed for target_repo| G[STATE: FIXED_EXACT]
-    G -->|Credits Bounty to Recipient| W
+    F -->|SHA in ranges.events.fixed for target_repo| G[STATE: PENDING_APPEAL]
+    G -->|24 Hours Pass -> Recipient Calls finalize| W[credits mapping updated]
     
     F -->|SHA Not in OSV| H[Fetch Bounded Git Diff Patch]
     H --> I[LLM Equivalence Adjudication]
-    I -->|Remediated == True| J[STATE: PENDING_APPEAL]
-    J -->|24 Hours Pass -> Recipient Calls finalize| P[STATE: FIXED_EQUIVALENT]
-    P -->|Credits Bounty to Recipient| W
-    I -->|Remediated == False| K[STATE: NOT_FIXED]
-    K -->|Credits 100% Refund to Funder| W
+    I -->|Remediated == True / False| J[STATE: PENDING_APPEAL]
+    J -->|24 Hours Pass -> Recipient Calls finalize| W
+    J -->|24 Hours Pass -> Funder Calls finalize| W
     
     F -->|OSV Rate Limit / Connection Error| R[Revert for Retry]
     F -->|OSV 404 / Missing Data| L[STATE: INSUFFICIENT]
@@ -60,12 +58,12 @@ graph TD
 
 ### Key Security Properties
 
-- **Fail-Closed by Default:** Any crash, 404, timeout, or consensus failure forces the state to `INSUFFICIENT` and refunds the funder. Funds are never trapped.
+- **Fail-Closed by Default:** Crashing inputs, 404s, timeouts, or consensus failures force the state to `INSUFFICIENT` and refund the funder.
 - **Rug-Pull Protection:** Funders cannot cancel the escrow immediately. A strict 7-day cancellation time-lock ensures the developer has a fair window to submit a patch.
-- **Equivalence Appeals:** When LLM consensus approves a patch, the claim enters a 24-hour `PENDING_APPEAL` state before `FIXED_EQUIVALENT` is finalized.
+- **Equivalence Appeals:** When consensus evaluates a patch, the claim enters a 24-hour `PENDING_APPEAL` state before credits are allocated.
 - **CEI Pattern (Checks-Effects-Interactions):** In `withdraw()`, the user credit balance is zeroed to `0` *before* the external `emit_transfer` call. If the transfer fails, the entire transaction reverts atomically. Re-entrancy is impossible.
 - **Pull-Over-Push Settlement:** Payouts are never pushed during `resolve()` or `cancel()`. Credits accumulate in a `credits` mapping and users pull their own funds via `withdraw()`, eliminating reentrancy vectors.
-- **Deterministic Claim IDs:** Claim IDs are derived from a SHA-256 hash of `sender + recipient + advisory + repo + commit + datetime + nonce`, guaranteeing zero collisions under concurrent block construction.
+- **Deterministic Claim IDs:** Claim IDs are derived from a SHA-256 hash of `sender + recipient + advisory + repo + commit + datetime + nonce`, providing collision resistance.
 - **Prompt Injection Defense:** The LLM fallback prompt explicitly instructs validators to ignore any directives embedded in the diff patch text.
 
 ### Resolution Paths
@@ -73,10 +71,10 @@ graph TD
 | State | Trigger | Settlement |
 | :--- | :--- | :--- |
 | `OPEN` | Initial state after `create_claim` | Funds locked in contract |
-| `FIXED_EXACT` | Commit SHA found in OSV `fixed` events | 100% bounty credited to Recipient |
-| `PENDING_APPEAL` | LLM consensus approved patch | Funds locked for 24-hour window |
-| `FIXED_EQUIVALENT` | `finalize()` called after 24h `PENDING_APPEAL` | 100% bounty credited to Recipient |
-| `NOT_FIXED` | LLM consensus: patch does not fix advisory | 100% refund credited to Funder |
+| `PENDING_APPEAL` | Consensus resolves claim | Funds locked for 24-hour window |
+| `FIXED_EXACT` | `finalize()` called after 24h, exact commit found | 100% bounty credited to Recipient |
+| `FIXED_EQUIVALENT` | `finalize()` called after 24h, LLM equivalent | 100% bounty credited to Recipient |
+| `NOT_FIXED` | `finalize()` called after 24h, LLM not equivalent | 100% refund credited to Funder |
 | `INSUFFICIENT` | OSV 404, patch missing, >10KB, or consensus failure | 100% refund credited to Funder |
 | `CANCELED` | Funder calls `cancel()` after 7-day lock | 100% refund credited to Funder |
 
