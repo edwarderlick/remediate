@@ -119,7 +119,7 @@ Runs the full contract logic via the GenLayer direct-mode simulator — no live 
 python -m pytest tests/direct tests/unit -q -rs
 ```
 
-Direct tests pin GenVM runner `v0.2.16` in `tests/direct/conftest.py`. On a fresh machine, `genlayer-test` downloads this runner from the [official release](https://github.com/genlayerlabs/genvm/releases/tag/v0.2.16); the package's unpinned newest-release fallback currently points to an unavailable `genvm-universal.tar.xz` asset. The deployed contract's `Depends` hash is unchanged.
+**Reproducibility blocker:** The deployed contract pins `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng`, but that runner is absent from the [official `v0.2.16` archive](https://github.com/genlayerlabs/genvm/releases/tag/v0.2.16) selected by `tests/direct/conftest.py`. A previously extracted local cache can make the direct tests pass; a clean environment fails before contract execution with `Runner hash ... not found`. The unit tests run independently. Do not treat a cached direct-suite pass as fresh-install evidence. A public bundle containing the exact deployed runner (and its standard-library dependency) is needed to reproduce the direct suite against this deployed source. The on-chain transactions above are separate evidence.
 
 Tests included:
 - `test_sequential_claims_return_distinct_deterministic_ids` — 5 sequential claims produce 5 unique `claim-0x...` IDs
