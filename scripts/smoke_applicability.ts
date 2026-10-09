@@ -7,7 +7,10 @@ import { resolve } from "node:path";
 
 dotenv.config({ path: resolve("frontend/.env.local"), quiet: true });
 
-const address = "0x9e440127500A4e65e4BF41494b7cf3D4bBF49BC3" as const;
+const production = process.argv.includes("--production-resolve");
+const address = (production
+  ? "0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF"
+  : "0x9e440127500A4e65e4BF41494b7cf3D4bBF49BC3") as `0x${string}`;
 const premium = 10n ** 15n;
 const account = createAccount(process.env.PRIVATE_KEY as `0x${string}`);
 const client = createClient({ chain: studioDevnet, account });
@@ -69,21 +72,21 @@ async function main() {
   const setting = "APPEAL_WINDOW_SECONDS = 86400  # 24 hours";
   if (source.split(setting).length !== 2) throw new Error("Production source changed");
   const canarySource = source.replace(setting, "APPEAL_WINDOW_SECONDS = 90  # Canary only");
-  const expectedHash = createHash("sha256").update(canarySource).digest("hex");
+  const expectedHash = createHash("sha256").update(production ? source : canarySource).digest("hex");
   const deployedHash = createHash("sha256").update(await client.getContractCode(address)).digest("hex");
-  if (deployedHash !== expectedHash) throw new Error("Canary source mismatch");
+  if (deployedHash !== expectedHash) throw new Error("Deployed source mismatch");
   const beforeCredit = BigInt(String(await client.readContract({ address, functionName: "get_credit", args: [account.address] })));
   if (beforeCredit !== 0n) throw new Error("Existing credit would make withdrawal proof ambiguous");
   const beforeRaw = await client.readContract({ address, functionName: "get_all_claims", args: [] });
   const before = JSON.parse(String(beforeRaw)) as Record<string, unknown>;
   const quote = await client.estimateTransactionFees();
   const balance = await client.getBalance({ address: account.address });
-  if (balance < premium + 4n * quote.feeValue) throw new Error("Need premium plus four fee budgets");
+  if (balance < premium + (production ? 2n : 4n) * quote.feeValue) throw new Error("Need premium plus fee budgets");
   console.log(`Chain: ${client.chain.id}; signer: ${account.address}`);
-  console.log(`Canary: ${address}; source SHA-256: ${deployedHash}`);
+  console.log(`${production ? "Production" : "Canary"}: ${address}; source SHA-256: ${deployedHash}`);
   console.log(`Balance: ${balance}; fee quote: ${quote.feeValue}; deposit: ${premium}`);
   if (!process.argv.includes("--run")) {
-    console.log("Preflight complete. Pass --run for four paid transactions.");
+    console.log(`Preflight complete. Pass --run for ${production ? "two" : "four"} paid transactions.`);
     return;
   }
 
@@ -101,6 +104,10 @@ async function main() {
     throw new Error(`Unexpected applicability verdict: ${JSON.stringify(resolved)}`);
   }
   console.log(`Verdict: ${resolved.appeal_state}; appeal deadline: ${resolved.appeal_deadline}`);
+  if (production) {
+    console.log(`Production applicability proof complete: ${claimId}. Finalization remains locked for 24 hours.`);
+    return;
+  }
   const delay = Math.max(0, Number(resolved.appeal_deadline) * 1000 - Date.now() + 3000);
   if (delay > 180000) throw new Error("Canary appeal deadline unexpectedly long");
   if (delay > 0) await new Promise((r) => setTimeout(r, delay));
