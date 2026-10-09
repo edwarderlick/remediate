@@ -116,7 +116,7 @@ The test suite covers deterministic claim ID generation, input validation, acces
 ### 1. Direct GenLayer Tests (Primary)
 Runs the full contract logic via the GenLayer direct-mode simulator — no live network required:
 ```bash
-pytest tests/direct/test_remediate.py -v
+python -m pytest tests/direct tests/unit -q -rs
 ```
 
 Direct tests pin GenVM runner `v0.2.16` in `tests/direct/conftest.py`. On a fresh machine, `genlayer-test` downloads this runner from the [official release](https://github.com/genlayerlabs/genvm/releases/tag/v0.2.16); the package's unpinned newest-release fallback currently points to an unavailable `genvm-universal.tar.xz` asset. The deployed contract's `Depends` hash is unchanged.

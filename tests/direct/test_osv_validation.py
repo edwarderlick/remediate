@@ -1,6 +1,6 @@
 import json
 
-def test_osv_oversized_fields_are_truncated(direct_vm, direct_deploy, direct_alice, direct_bob):
+def test_osv_oversized_fields_fail_closed(direct_vm, direct_deploy, direct_alice, direct_bob):
     direct_vm.sender = direct_alice
     direct_vm.value = 10**16
     contract = direct_deploy("contract/remediate.py")
