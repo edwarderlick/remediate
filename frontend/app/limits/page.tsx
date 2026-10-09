@@ -7,7 +7,7 @@ export default function LimitsPage() {
         <div className="border border-lines bg-surface p-6">
           <h2 className="text-xl font-bold font-mono text-state-fail mb-2">Test Network Only</h2>
           <p className="text-gray-400">
-            Remediate currently operates exclusively on GenLayer StudioNet. 
+            Remediate currently operates exclusively on GenLayer Studio Next. 
             All GEN tokens used in the application are test tokens with no real-world value.
           </p>
         </div>

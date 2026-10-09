@@ -14,7 +14,7 @@ export default function HowItWorks() {
       <div className="space-y-8 text-gray-300">
         <section className="space-y-4">
           <h2 className="text-2xl font-bold text-white border-b border-lines pb-2">1. The Escrow Primitive</h2>
-          <p>Remediate is a narrow, fail-closed escrow primitive built on GenLayer StudioNet. A funder locks a premium (test GEN) against a specific vulnerability advisory (OSV ID) and a proposed fix (Commit SHA).</p>
+          <p>Remediate is a narrow, fail-closed escrow primitive built on GenLayer Studio Next. A funder locks a premium (test GEN) against a specific vulnerability advisory (OSV ID) and a proposed fix (Commit SHA).</p>
           <p>This is not a bug bounty marketplace. There are no challenges, appeals, or subjective judges. The contract execution is completely deterministic based on the current state of public APIs (OSV and GitHub).</p>
         </section>
 

@@ -1,11 +1,33 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
+
 import json
 import re
 import hashlib
-import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
-from genlayer import *
+import genlayer as gl
+try:
+    Address
+    u256
+except NameError:
+    from genlayer import types as gl_types
+    Address = gl_types.Address
+    u256 = gl_types.u256
 
+try:
+    import genlayer.vm as gl_vm
+except ImportError:
+    gl_vm = None
+
+try:
+    import genlayer.storage as genlayer_storage
+    from genlayer.storage import DynArray, TreeMap
+    allow_storage = genlayer_storage.allow
+except ImportError:
+    TreeMap = dict
+    DynArray = list
+    def allow_storage(cls):
+        return cls
 ERROR_EXPECTED = "[EXPECTED]"
 
 STATE_OPEN = "OPEN"
@@ -33,7 +55,7 @@ def parse_dt_to_unix(dt_str: str) -> int:
         pass
     try:
         dt_clean = dt_str.replace("Z", "+00:00")
-        return int(datetime.datetime.fromisoformat(dt_clean).timestamp())
+        return int(datetime.fromisoformat(dt_clean).timestamp())
     except Exception:
         return 0
 
@@ -57,15 +79,51 @@ class Claim:
     escalation_deadline: str # Unix timestamp: escalation timeout defaulting to NOT_FIXED
 
 
-class RemediateContract(gl.Contract):
-    operator: Address
+
+def get_now_unix() -> int:
+    try:
+        if gl_vm is not None:
+            raw = gl_vm.get_timestamp()
+            if isinstance(raw, datetime):
+                return int(raw.timestamp())
+            return parse_dt_to_unix(raw)
+    except Exception:
+        pass
+    try:
+        raw = gl.vm.get_timestamp()
+        if isinstance(raw, datetime):
+            return int(raw.timestamp())
+        return parse_dt_to_unix(raw)
+    except Exception:
+        pass
+    try:
+        raw = getattr(gl, "message_raw", None)
+        if isinstance(raw, dict):
+            return parse_dt_to_unix(raw.get("datetime", ""))
+    except Exception:
+        pass
+    return 0
+
+def get_nonce() -> str:
+    try:
+        raw = getattr(gl, "message_raw", None)
+        if isinstance(raw, dict):
+            return str(raw.get("nonce", ""))
+    except Exception:
+        pass
+    return ""
+
+try:
+    _BaseContract = gl.Contract
+except AttributeError:
+    _BaseContract = gl.contract.Contract
+class RemediateContract(_BaseContract):
     claims: TreeMap[str, Claim]
     credits: TreeMap[str, u256]
     claim_list: DynArray[str]
     withdrawing: bool
 
     def __init__(self):
-        self.operator = gl.message.sender_address
         self.withdrawing = False
 
     def _credit(self, to: Address, amount: u256) -> None:
@@ -110,7 +168,10 @@ class RemediateContract(gl.Contract):
 
         # External transfer. If this fails, entire call reverts, restoring self.credits[caller]!
         try:
-            gl.get_contract_at(caller).emit_transfer(value=amount)
+            gl.contract.get_at(caller).emit_transfer(value=amount)
+        except Exception:
+            self.credits[caller_str] = amount
+            raise
         finally:
             self.withdrawing = False
 
@@ -153,8 +214,8 @@ class RemediateContract(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid advisory ID")
 
         recipient_addr = Address(recipient)
-        dt = str(gl.message_raw.get("datetime", ""))
-        nonce = str(gl.message_raw.get("nonce", ""))
+        dt = str(get_now_unix())
+        nonce = get_nonce()
 
         # Deterministic transaction-specific correlation ID (Provider Court fix)
         hash_input = f"{sender}-{recipient_addr}-{adv_clean}-{repo_clean}-{sha_clean}-{dt}-{nonce}"
@@ -230,9 +291,9 @@ class RemediateContract(gl.Contract):
                 if not raw_json or raw_json.strip() == "":
                     # Empty response = transient error, not a 404
                     return NETWORK_ERROR_SENTINEL
-            except Exception:
+            except Exception as e:
                 # Network error fetching OSV = transient, should be retried
-                return NETWORK_ERROR_SENTINEL
+                raise Exception(f"Fetching OSV failed: {e}")
 
             # A genuine 404 returns JSON like {"code": 5, "message": "not found"}
             # A valid advisory is a JSON dict with an "id" key
@@ -255,6 +316,7 @@ class RemediateContract(gl.Contract):
             # ── 1. FAIL-CLOSED DETERMINISTIC FIX CHECK ────────────────────────
             fixed_shas = []
             repo_is_affected = False
+            # Check ranges inside affected
             for aff in advisory.get("affected", []):
                 if not isinstance(aff, dict):
                     continue
@@ -267,15 +329,6 @@ class RemediateContract(gl.Contract):
                 clean_aff_repo = aff_repo.replace("https://github.com/", "").replace("http://github.com/", "").replace("github.com/", "").replace("https://", "").replace("http://", "").strip("/").lower().rstrip(".git")
                 if clean_aff_repo == target_repo:
                     repo_is_affected = True
-
-            # Also check references for the repo URL (common in PyPI/NPM OSVs)
-            if not repo_is_affected:
-                for ref in advisory.get("references", []):
-                    ref_url = ref.get("url", "") or ""
-                    clean_ref = ref_url.replace("https://github.com/", "").replace("http://github.com/", "").replace("github.com/", "").replace("https://", "").replace("http://", "").strip("/").lower().rstrip(".git")
-                    if clean_ref == target_repo or clean_ref.startswith(target_repo + "/"):
-                        repo_is_affected = True
-                        break
 
                 for rng in aff.get("ranges", []):
                     if not isinstance(rng, dict):
@@ -306,6 +359,15 @@ class RemediateContract(gl.Contract):
                 return STATE_INSUFFICIENT # Advisory does not apply to this repo
 
             # ── 2. LLM EQUIVALENCE FALLBACK ─────────────────────────────────
+            summary = str(advisory.get('summary', '')).strip()
+            details = str(advisory.get('details', '')).strip()
+
+            if len(summary) > 500 or len(details) > 2000:
+                return STATE_INSUFFICIENT
+
+            if not summary and not details:
+                return STATE_INSUFFICIENT  # Insufficient advisory details for LLM to adjudicate a fix
+
             patch_url = f"https://github.com/{target_repo}/commit/{target_sha}.patch"
             patch_text = ""
             try:
@@ -313,7 +375,7 @@ class RemediateContract(gl.Contract):
                 patch_text = str(patch_res).strip()
                 if not patch_text:
                     return NETWORK_ERROR_SENTINEL  # Empty = transient, retry
-                if len(patch_text) > 25000:
+                if len(patch_text) > 10000:
                     return STATE_INSUFFICIENT  # Too large to evaluate = submission quality issue
             except Exception:
                 return NETWORK_ERROR_SENTINEL  # Network error fetching patch = transient
@@ -328,12 +390,12 @@ Target Repo: {target_repo}
 Commit SHA: {target_sha}
 
 ADVISORY DETAILS:
-Summary: {advisory.get('summary', 'N/A')}
-Details: {advisory.get('details', 'N/A')}
+Summary: {(summary or 'N/A')[:500]}
+Details: {(details or 'N/A')[:2000]}
 
 DIFF PATCH CONTENT:
 <<<BEGIN_DIFF>>>
-{patch_text[:10000]}
+{patch_text}
 <<<END_DIFF>>>
 
 INSTRUCTIONS:
@@ -343,17 +405,28 @@ INSTRUCTIONS:
 {{"remediated": true}} or {{"remediated": false}}
 """
             try:
-                llm_res = str(gl.nondet.exec_prompt(prompt)).strip()
-                if llm_res.startswith("```"):
-                    llm_res = re.sub(r"^```(?:json)?", "", llm_res).strip()
-                    llm_res = re.sub(r"```$", "", llm_res).strip()
-                parsed = json.loads(llm_res)
+                llm_raw = gl.nondet.exec_prompt(prompt)
+                if isinstance(llm_raw, dict):
+                    parsed = llm_raw
+                else:
+                    llm_res = str(llm_raw).strip()
+                    if llm_res.startswith("```"):
+                        llm_res = re.sub(r"^```(?:json)?", "", llm_res).strip()
+                        llm_res = re.sub(r"```$", "", llm_res).strip()
+                    if llm_res.startswith("{") and "'" in llm_res and '"' not in llm_res:
+                        import ast
+                        parsed = ast.literal_eval(llm_res)
+                    else:
+                        parsed = json.loads(llm_res)
+                        
                 if parsed.get("remediated") is True:
                     return STATE_FIXED_EQUIVALENT
                 else:
                     return STATE_NOT_FIXED
-            except Exception:
-                return NETWORK_ERROR_SENTINEL  # (Changed from STATE_INSUFFICIENT)
+            except Exception as e:
+                raise Exception(f"LLM failed: {e}. Output was: {llm_raw}")
+            
+            return "__fell_through__"
 
         # Multi-node consensus strictly enforced across validator committee
         try:
@@ -369,7 +442,7 @@ INSTRUCTIONS:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Unexpected consensus result: {status}")
 
         # ── FIX 4: PENDING_APPEAL — do not credit funds yet ────────────────
-        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_dt = str(get_now_unix())
         now_unix = parse_dt_to_unix(now_dt)
         appeal_deadline = str(now_unix + APPEAL_WINDOW_SECONDS)
 
@@ -403,7 +476,7 @@ INSTRUCTIONS:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim is not in PENDING_APPEAL state (currently {claim.state})")
 
         # Check appeal window has expired
-        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_dt = str(get_now_unix())
         now_unix = parse_dt_to_unix(now_dt)
         try:
             deadline_unix = int(float(claim.appeal_deadline)) if claim.appeal_deadline else 0
@@ -445,7 +518,7 @@ INSTRUCTIONS:
         if claim.state != STATE_PENDING_APPEAL:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Can only appeal during PENDING_APPEAL state")
 
-        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_dt = str(get_now_unix())
         now_unix = parse_dt_to_unix(now_dt)
         try:
             deadline_unix = int(float(claim.appeal_deadline)) if claim.appeal_deadline else 0
@@ -481,7 +554,7 @@ INSTRUCTIONS:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Cannot cancel claim in {claim.state} state")
 
         # FIX 1: Enforce cancellation time-lock
-        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_dt = str(get_now_unix())
         now_unix = parse_dt_to_unix(now_dt)
         try:
             deadline_unix = int(float(claim.cancel_deadline)) if claim.cancel_deadline else 0
@@ -576,33 +649,7 @@ INSTRUCTIONS:
     def list_claim_ids(self) -> list:
         return self.claim_list
 
-    @gl.public.write
-    def resolve_escalation(self, claim_id: str, final_status: str) -> str:
-        """Resolves an escalated claim. Only the operator can call this."""
-        if str(gl.message.sender_address).lower() != str(self.operator).lower():
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Unauthorized: only operator can resolve escalations")
 
-        cid = str(claim_id or "").strip()
-        if cid not in self.claims:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim not found: {cid}")
-
-        claim = self.claims[cid]
-        if claim.state != STATE_ESCALATED:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim is not in ESCALATED state")
-
-        if final_status not in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT, STATE_NOT_FIXED, STATE_INSUFFICIENT):
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid final status")
-
-        claim.state = final_status
-        claim.rationale = f"Operator resolved escalation: {final_status}"
-        self.claims[cid] = claim
-
-        if final_status in (STATE_FIXED_EXACT, STATE_FIXED_EQUIVALENT):
-            self._credit(claim.recipient, claim.amount)
-        else:
-            self._credit(claim.funder, claim.amount)
-
-        return json.dumps({"ok": True, "state": final_status})
 
     @gl.public.write
     def finalize_escalation(self, claim_id: str) -> str:
@@ -615,7 +662,7 @@ INSTRUCTIONS:
         if claim.state != STATE_ESCALATED:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim is not in ESCALATED state")
 
-        now_dt = str(gl.message_raw.get("datetime", ""))
+        now_dt = str(get_now_unix())
         now_unix = parse_dt_to_unix(now_dt)
         try:
             deadline_unix = int(float(claim.escalation_deadline)) if claim.escalation_deadline else 0
@@ -627,7 +674,7 @@ INSTRUCTIONS:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Escalation timeout not yet expired. {remaining} seconds remaining.")
 
         claim.state = STATE_NOT_FIXED
-        claim.rationale = "Operator failed to resolve escalation. Defaulted to NOT_FIXED."
+        claim.rationale = "Escalation timed out. Defaulted to NOT_FIXED."
         self.claims[cid] = claim
         self._credit(claim.funder, claim.amount)
         return json.dumps({"ok": True, "state": STATE_NOT_FIXED})

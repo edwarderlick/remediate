@@ -1,22 +1,13 @@
 import { http, createConfig } from 'wagmi';
 import { injected } from 'wagmi/connectors';
-
-export const genLayerStudioNet = {
-  id: 61999,
-  name: 'GenLayer StudioNet',
-  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-  rpcUrls: {
-    default: { http: ['https://studio.genlayer.com/api'] },
-    public: { http: ['https://studio.genlayer.com/api'] },
-  },
-} as const;
+import { studioDevnet } from 'genlayer-js/chains';
 
 export const config = createConfig({
-  chains: [genLayerStudioNet],
+  chains: [studioDevnet],
   connectors: [
     injected(),
   ],
   transports: {
-    [genLayerStudioNet.id]: http(),
+    [studioDevnet.id]: http(),
   },
 });

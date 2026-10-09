@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { getGenLayerClient, CONTRACT_ADDRESS } from "@/lib/genlayer";
-import { genLayerStudioNet } from "@/lib/wagmiConfig";
+import { studioDevnet } from "genlayer-js/chains";
 
 export function useGenLayer() {
   const { address, isConnected } = useAccount();
@@ -14,7 +14,7 @@ export function useGenLayer() {
   const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
-    if (!isConnected || chainId !== genLayerStudioNet.id) {
+    if (!isConnected || chainId !== studioDevnet.id) {
       const t = setTimeout(() => {
         setClient(null);
         setIsContractDeployed(null);
@@ -63,7 +63,7 @@ export function useGenLayer() {
     initClient();
   }, [isConnected, chainId, address]);
 
-  const isReady = isConnected && chainId === genLayerStudioNet.id && isContractDeployed === true;
+  const isReady = isConnected && chainId === studioDevnet.id && isContractDeployed === true;
 
   return {
     client,
@@ -71,6 +71,6 @@ export function useGenLayer() {
     isChecking,
     isContractDeployed,
     isConnected,
-    isWrongNetwork: isConnected && chainId !== genLayerStudioNet.id
+    isWrongNetwork: isConnected && chainId !== studioDevnet.id
   };
 }

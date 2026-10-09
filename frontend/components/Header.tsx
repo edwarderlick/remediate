@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAccount, useConnect, useDisconnect, useChainId, useBalance } from "wagmi";
 import { formatEther } from "viem";
-import { genLayerStudioNet } from "@/lib/wagmiConfig";
+import { studioDevnet } from "genlayer-js/chains";
 import { useEffect, useState } from "react";
 import { Unplug, Zap } from "lucide-react";
 
@@ -21,13 +21,13 @@ export default function Header() {
     return () => clearTimeout(t);
   }, []);
 
-  const isWrongNetwork = isConnected && chainId !== genLayerStudioNet.id;
+  const isWrongNetwork = isConnected && chainId !== studioDevnet.id;
 
   return (
     <header className="border-b border-lines bg-surface/50 sticky top-0 z-50 backdrop-blur-sm">
       {mounted && isWrongNetwork && (
         <div className="bg-state-fail text-white text-sm py-1 text-center font-mono font-bold flex items-center justify-center gap-2">
-          <Unplug className="w-4 h-4" /> WRONG NETWORK: Please connect to GenLayer StudioNet
+          <Unplug className="w-4 h-4" /> WRONG NETWORK: Please connect to GenLayer Studio Next
         </div>
       )}
       <div className="max-w-6xl mx-auto flex items-center justify-between p-4">

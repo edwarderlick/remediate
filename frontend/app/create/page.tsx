@@ -5,8 +5,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGenLayer } from "@/hooks/useGenLayer";
 import EmptyState from "@/components/EmptyState";
+import TransactionModal from "@/components/TransactionModal";
+import { SubmitInput } from "@genlayer/transaction-kit";
 import { parseEther } from "viem";
-import { CONTRACT_ADDRESS } from "@/lib/genlayer";
+import { CONTRACT_ADDRESS, STUDIO_NEXT_CHAIN_ID } from "@/lib/genlayer";
 import { useAccount, useSwitchChain } from "wagmi";
 
 export default function CreateEscrow() {
@@ -14,7 +16,7 @@ export default function CreateEscrow() {
   const { isReady, client, isChecking, isContractDeployed } = useGenLayer();
   const { chainId } = useAccount();
   const { switchChain } = useSwitchChain();
-  const isWrongChain = chainId !== 61999;
+  const isWrongChain = chainId !== STUDIO_NEXT_CHAIN_ID;
   
   const [advisoryId, setAdvisoryId] = useState("");
   const [repo, setRepo] = useState("");
@@ -25,65 +27,25 @@ export default function CreateEscrow() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [txInput, setTxInput] = useState<SubmitInput | null>(null);
 
   const isShaValid = commitSha.length === 40 && /^[0-9a-fA-F]+$/.test(commitSha);
   const isFormValid = advisoryId && repo && isShaValid && recipient && amount && !isNaN(Number(amount));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading || !isFormValid || !client) return;
 
-    setIsLoading(true);
     setError("");
     setSuccess("");
 
-    try {
-      const cleanRepo = repo.replace("https://", "").replace("http://", "").replace("github.com/", "").trim();
-      const hash = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "create_claim",
-        args: [advisoryId, cleanRepo, commitSha, recipient],
-        value: parseEther(amount)
-      });
-      
-      setSuccess(`Escrow created! TX Hash: ${hash}. Waiting for consensus...`);
-      
-      let finalized = false;
-      for (let i = 0; i < 60; i++) {
-        const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
-          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
-          if (revertReason) {
-            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
-          }
-          finalized = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!finalized) {
-        throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check your escrow status.");
-      }
-      
-      setAdvisoryId("");
-      setRepo("");
-      setCommitSha("");
-      setRecipient("");
-      setAmount("");
-
-      setIsLoading(false);
-      router.refresh();
-      await new Promise(r => setTimeout(r, 3000));
-      router.push("/claims");
-    } catch (err: any) {
-      console.error(err);
-      if (err?.message?.includes("User rejected") || err?.name === "UserRejectedRequestError") {
-        setError(""); // Dismiss error if user manually rejected
-      } else {
-        setError(err.message || "Transaction failed");
-      }
-      setIsLoading(false);
-    }
+    const cleanRepo = repo.replace("https://", "").replace("http://", "").replace("github.com/", "").trim();
+    setTxInput({
+      kind: 'write',
+      address: CONTRACT_ADDRESS,
+      method: 'create_claim',
+      args: [advisoryId, cleanRepo, commitSha, recipient]
+    });
   };
 
   if (isChecking) {
@@ -98,7 +60,7 @@ export default function CreateEscrow() {
           title={isContractDeployed === false ? "Contract Not Deployed" : "Wallet Disconnected"}
           description={isContractDeployed === false 
             ? "The Remediate contract could not be found on this network." 
-            : "Please connect your wallet to GenLayer StudioNet to create an escrow."}
+            : "Please connect your wallet to GenLayer Studio Next to create an escrow."}
         />
       </div>
     );
@@ -175,10 +137,10 @@ export default function CreateEscrow() {
         {isWrongChain ? (
           <button 
             type="button"
-            onClick={() => switchChain({ chainId: 61999 })}
+            onClick={() => switchChain({ chainId: STUDIO_NEXT_CHAIN_ID })}
             className="w-full bg-white text-black font-bold uppercase tracking-wider p-4 hover:bg-gray-200 transition-colors"
           >
-            Switch to GenLayer StudioNet
+            Switch to GenLayer Studio Next
           </button>
         ) : (
           <button 
@@ -190,6 +152,35 @@ export default function CreateEscrow() {
           </button>
         )}
       </form>
+
+      {txInput && (
+        <TransactionModal
+          tx={txInput}
+          userValue={parseEther(amount)}
+          onClose={() => setTxInput(null)}
+          onDone={(status) => {
+            if (status.statusName === 'ACCEPTED' || status.statusName === 'FINALIZED') {
+              if (status.executionResultName === 'FINISHED_WITH_RETURN') {
+                setSuccess(`Escrow created successfully!`);
+                setAdvisoryId("");
+                setRepo("");
+                setCommitSha("");
+                setRecipient("");
+                setAmount("");
+                setTimeout(() => {
+                  router.push("/claims");
+                }, 2000);
+              } else {
+                setError(`Transaction failed: ${status.executionResultName}`);
+              }
+            } else {
+              setError(`Transaction failed: ${status.statusName}`);
+            }
+            setTxInput(null);
+          }}
+        />
+      )}
     </div>
   );
 }
+

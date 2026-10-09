@@ -4,9 +4,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGenLayer } from "@/hooks/useGenLayer";
-import { CONTRACT_ADDRESS } from "@/lib/genlayer";
+import { DEFAULT_FEES_DISTRIBUTION } from "genlayer-js";
+import { CONTRACT_ADDRESS, STUDIO_NEXT_CHAIN_ID } from "@/lib/genlayer";
 import { StatusBadge } from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
+import TransactionModal from "@/components/TransactionModal";
+import { SubmitInput } from "@genlayer/transaction-kit";
 import { formatEther } from "viem";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, Link2, Terminal, X } from "lucide-react";
@@ -17,13 +20,14 @@ export default function EscrowDocket() {
   const router = useRouter();
   const { address, chainId } = useAccount();
   const { switchChain } = useSwitchChain();
-  const isWrongChain = chainId !== 61999;
+  const isWrongChain = chainId !== STUDIO_NEXT_CHAIN_ID;
   const { refetch: refetchBalance } = useBalance({ address });
   const { isReady, client, isChecking } = useGenLayer();
   const [claim, setClaim] = useState<any>(null);
   const [pendingBalance, setPendingBalance] = useState<bigint>(BigInt(0));
   const [isLoading, setIsLoading] = useState(true);
   const [actionType, setActionType] = useState<string | null>(null);
+  const [txInput, setTxInput] = useState<SubmitInput | null>(null);
   const [message, setMessage] = useState("");
   const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
 
@@ -101,285 +105,71 @@ export default function EscrowDocket() {
     }
   };
 
-  const handleResolve = async () => {
+  const handleResolve = () => {
     if (!client || actionType) return;
-    setActionType("resolve");
-    setMessage("Resolving claim... This may take up to 20 seconds for consensus.");
-    try {
-      const hash = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "resolve",
-        args: [id as string]
-      });
-      setMessage(`Resolve TX Submitted: ${hash}. Waiting for consensus...`);
-      let finalized = false;
-      for (let i = 0; i < 60; i++) {
-        const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
-          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
-          if (revertReason) {
-            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
-          }
-          finalized = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
-      setMessage(`Resolve TX Finalized!`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const updatedClaim = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_claim",
-        args: [id as string]
-      });
-      let parsed = updatedClaim;
-      if (typeof updatedClaim === "string") {
-        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
-      }
-      setClaim(parsed);
-      router.refresh();
-    } catch (err: any) {
-      handleError(err);
-    } finally {
-      setActionType(null);
-    }
+    setTxInput({
+      kind: 'write',
+      address: CONTRACT_ADDRESS,
+      method: 'resolve',
+      args: [id as string]
+    });
+    setActionType('resolve');
   };
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!client || actionType) return;
-    setActionType("cancel");
-    setMessage("Canceling claim...");
-    try {
-      const hash = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "cancel",
-        args: [id as string]
-      });
-      setMessage(`Cancel TX Submitted: ${hash}. Waiting for consensus...`);
-      let finalized = false;
-      for (let i = 0; i < 60; i++) {
-        const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
-          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
-          if (revertReason) {
-            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
-          }
-          finalized = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
-      setMessage(`Cancel TX Finalized!`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const updatedClaim = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_claim",
-        args: [id as string]
-      });
-      let parsed = updatedClaim;
-      if (typeof updatedClaim === "string") {
-        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
-      }
-      setClaim(parsed);
-      router.refresh();
-    } catch (err: any) {
-      handleError(err);
-    } finally {
-      setActionType(null);
-    }
+    setTxInput({
+      kind: 'write',
+      address: CONTRACT_ADDRESS,
+      method: 'cancel',
+      args: [id as string]
+    });
+    setActionType('cancel');
   };
 
-  const handleFinalize = async () => {
+  const handleFinalize = () => {
     if (!client || actionType) return;
-    setActionType("finalize");
-    setMessage("Finalizing claim payout...");
-    try {
-      const hash = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "finalize",
-        args: [id as string]
-      });
-      setMessage(`Finalize TX Submitted: ${hash}. Waiting for consensus...`);
-      let finalized = false;
-      for (let i = 0; i < 60; i++) {
-        const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
-          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
-          if (revertReason) {
-            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
-          }
-          finalized = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
-      setMessage(`Finalize TX Finalized!`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const updatedClaim = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_claim",
-        args: [id as string]
-      });
-      let parsed = updatedClaim;
-      if (typeof updatedClaim === "string") {
-        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
-      }
-      setClaim(parsed);
-      router.refresh();
-    } catch (err: any) {
-      handleError(err);
-    } finally {
-      setActionType(null);
-    }
+    setTxInput({
+      kind: 'write',
+      address: CONTRACT_ADDRESS,
+      method: 'finalize',
+      args: [id as string]
+    });
+    setActionType('finalize');
   };
 
-  const handleAppeal = async () => {
+  const handleAppeal = () => {
     if (!client || actionType) return;
-    setActionType("appeal");
-    setMessage("Appealing verdict and freezing payout...");
-    try {
-      const hash = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "appeal",
-        args: [id as string]
-      });
-      setMessage(`Appeal TX Submitted: ${hash}. Waiting for consensus...`);
-      let finalized = false;
-      for (let i = 0; i < 60; i++) {
-        const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
-          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
-          if (revertReason) {
-            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
-          }
-          finalized = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
-      setMessage(`Appeal TX Finalized!`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const updatedClaim = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_claim",
-        args: [id as string]
-      });
-      let parsed = updatedClaim;
-      if (typeof updatedClaim === "string") {
-        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
-      }
-      setClaim(parsed);
-      router.refresh();
-    } catch (err: any) {
-      handleError(err);
-    } finally {
-      setActionType(null);
-    }
+    setTxInput({
+      kind: 'write',
+      address: CONTRACT_ADDRESS,
+      method: 'appeal',
+      args: [id as string]
+    });
+    setActionType('appeal');
   };
 
   
-  const handleFinalizeEscalation = async () => {
+  const handleFinalizeEscalation = () => {
     if (!client || actionType) return;
-    setActionType("finalize_escalation");
-    setMessage("Finalizing timed-out escalation...");
-    try {
-      const hash = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "finalize_escalation",
-        args: [id as string]
-      });
-      setMessage(`Finalize Escalation TX Submitted: ${hash}. Waiting for consensus...`);
-      let finalized = false;
-      for (let i = 0; i < 60; i++) {
-        const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
-          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
-          if (revertReason) {
-            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
-          }
-          finalized = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
-      setMessage(`Finalize Escalation TX Finalized!`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const updatedClaim = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_claim",
-        args: [id as string]
-      });
-      let parsed = updatedClaim;
-      if (typeof updatedClaim === "string") {
-        try { parsed = JSON.parse(updatedClaim); } catch (e) {}
-      }
-      setClaim(parsed);
-      router.refresh();
-    } catch (err: any) {
-      handleError(err);
-    } finally {
-      setActionType(null);
-    }
+    setTxInput({
+      kind: 'write',
+      address: CONTRACT_ADDRESS,
+      method: 'finalize_escalation',
+      args: [id as string]
+    });
+    setActionType('finalize_escalation');
   };
 
-  const handleWithdraw = async () => {
+  const handleWithdraw = () => {
     if (!client || actionType) return;
-    setActionType("withdraw");
-    setMessage("Withdrawing credits...");
-    try {
-      const hash = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "withdraw",
-        args: []
-      });
-      setMessage(`Withdraw TX Submitted: ${hash}. Waiting for consensus...`);
-      let finalized = false;
-      for (let i = 0; i < 60; i++) {
-        const tx = await client.getTransaction({ hash });
-        if (tx.status === 2 || tx.status === "2" || tx.status === 3 || tx.status === "3" || tx.status === "ACCEPTED" || tx.status === "FINALIZED") {
-          const revertReason = (tx as any).execution_error || (tx as any).error || (tx as any).data?.error || ((tx as any).success === false ? "Execution failed" : null);
-          if (revertReason) {
-            throw new Error(`Transaction Reverted by VM: ${revertReason}`);
-          }
-          finalized = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!finalized) throw new Error("Consensus is taking longer than expected. Please refresh the page in a few moments to check status.");
-      setMessage(`Withdraw TX Finalized!`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      try {
-        const wResult = await client.readContract({
-          address: CONTRACT_ADDRESS,
-          functionName: "get_pending_withdrawal",
-          args: [address]
-        });
-        if (typeof wResult === "number" || typeof wResult === "bigint") {
-          setPendingBalance(BigInt(wResult));
-        } else if (typeof wResult === "string") {
-          try {
-            const wParsed = JSON.parse(wResult);
-            setPendingBalance(BigInt(wParsed.amount ?? wParsed));
-          } catch {
-            setPendingBalance(BigInt(wResult));
-          }
-        }
-      } catch (e) {
-        setPendingBalance(BigInt(0));
-      }
-      if (typeof refetchBalance !== 'undefined' && refetchBalance) await refetchBalance();
-      router.refresh();
-    } catch (err: any) {
-      handleError(err);
-    } finally {
-      setActionType(null);
-    }
+    setTxInput({
+      kind: 'write',
+      address: CONTRACT_ADDRESS,
+      method: 'withdraw',
+      args: []
+    });
+    setActionType('withdraw');
   };
 
   if (isChecking || isLoading) return <div className="p-12 text-center text-gray-400 font-mono animate-pulse">Loading Escrow Docket...</div>;
@@ -595,10 +385,10 @@ export default function EscrowDocket() {
           <div className="flex flex-wrap gap-4">
             {isWrongChain ? (
               <button 
-                onClick={() => switchChain({ chainId: 61999 })}
+                onClick={() => switchChain({ chainId: STUDIO_NEXT_CHAIN_ID })}
                 className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors"
               >
-                Switch to GenLayer StudioNet
+                Switch to GenLayer Studio Next
               </button>
             ) : (
               <>
@@ -675,6 +465,62 @@ export default function EscrowDocket() {
         </section>
 
       </div>
+
+      {txInput && (
+        <TransactionModal
+          tx={txInput}
+          onClose={() => { setTxInput(null); setActionType(null); }}
+          onDone={async (status) => {
+            if (status.statusName === 'ACCEPTED' || status.statusName === 'FINALIZED') {
+              if (status.executionResultName === 'FINISHED_WITH_RETURN') {
+                setMessage(`${actionType} successful!`);
+                await new Promise(r => setTimeout(r, 2000));
+                router.refresh();
+                if (actionType === 'withdraw') {
+                  try {
+                    const wResult = await client?.readContract({
+                      address: CONTRACT_ADDRESS,
+                      functionName: "get_pending_withdrawal",
+                      args: [address]
+                    });
+                    if (typeof wResult === "number" || typeof wResult === "bigint") {
+                      setPendingBalance(BigInt(wResult));
+                    } else if (typeof wResult === "string") {
+                      try {
+                        const wParsed = JSON.parse(wResult);
+                        setPendingBalance(BigInt(wParsed.amount ?? wParsed));
+                      } catch {
+                        setPendingBalance(BigInt(wResult));
+                      }
+                    }
+                  } catch (e) {
+                    setPendingBalance(BigInt(0));
+                  }
+                  if (typeof refetchBalance !== 'undefined' && refetchBalance) await refetchBalance();
+                } else {
+                  const updatedClaim = await client?.readContract({
+                    address: CONTRACT_ADDRESS,
+                    functionName: "get_claim",
+                    args: [id as string]
+                  });
+                  let parsed = updatedClaim;
+                  if (typeof updatedClaim === "string") {
+                    try { parsed = JSON.parse(updatedClaim); } catch (e) {}
+                  }
+                  setClaim(parsed);
+                }
+              } else {
+                setMessage(`Transaction failed: ${status.executionResultName}`);
+              }
+            } else {
+              setMessage(`Transaction failed: ${status.statusName}`);
+            }
+            setTxInput(null);
+            setActionType(null);
+          }}
+        />
+      )}
     </div>
   );
 }
+

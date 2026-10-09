@@ -1,0 +1,34 @@
+{
+  "name": "remediate",
+  "version": "1.0.0",
+  "description": "**Fail-Closed Vulnerability Escrow Primitive on GenLayer**",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.6",
+    "genlayer-js": "^2.0.0-rc.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy:studio-next": "tsx scripts/deploy.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edwarderlick/remediate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/edwarderlick/remediate/issues"
+  },
+  "homepage": "https://github.com/edwarderlick/remediate#readme"
+}

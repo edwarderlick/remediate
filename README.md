@@ -2,7 +2,7 @@
 
 **Fail-Closed Vulnerability Escrow Primitive on GenLayer**
 
-Remediate is a deterministic, fail-closed vulnerability fix escrow protocol built on GenLayer StudioNet. It replaces open-ended, subjective AI jury courts with strict cryptographic commit verification and multi-validator intelligent consensus.
+Remediate is a deterministic, fail-closed vulnerability fix escrow protocol built on GenLayer Studio Next. It replaces open-ended, subjective AI jury courts with strict cryptographic commit verification and multi-validator intelligent consensus.
 
 Funders lock native GEN against a specific repository and vulnerability advisory. When a patch is submitted, validators strictly verify whether the commit SHA is recorded in the Open Source Vulnerabilities (OSV) database as an authentic `fixed` event for that exact repository. If and only if the exact commit is not yet cataloged, validators evaluate the `.patch` diff against the advisory using bounded, prompt-injection-defended LLM consensus.
 
@@ -10,9 +10,9 @@ Funders lock native GEN against a specific repository and vulnerability advisory
 
 ### 🌐 Live Protocol Info
 - **Live App:** [https://remediate-five.vercel.app/](https://remediate-five.vercel.app/)
-- **StudioNet Contract Address:** `0x055f47d2755281D881eb4ffd52067b52Cf1049f2`
-- **Chain ID:** `61999`
-- **RPC Endpoint:** `https://studio.genlayer.com/api`
+- **Studio Next Contract Address:** `0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27`
+- **Chain ID:** `61997`
+- **RPC Endpoint:** `https://studio-dev.genlayer.com/api`
 
 ---
 
@@ -78,17 +78,15 @@ graph TD
 
 ---
 
-## ⚡ Live StudioNet Settlement Proofs
+## ⚡ Historical StudioNet Settlement Proofs
 
-Real transactions finalized on GenLayer StudioNet demonstrating the fail-closed state machine:
+Real transactions finalized on the legacy GenLayer StudioNet demonstrating the fail-closed state machine:
 
 | Resolution Path | Target | Transaction Hash | Result |
 | :--- | :--- | :--- | :--- |
 | **FIXED_EXACT** | `curl/curl` (`OSV-2017-1`) | `0x05b485473a9d8e365f68a4b1e97bb566cd0294d48fd4be369cc7033bb744aa57` | Recipient paid `0.02 GEN`. Exact commit verified in OSV `fixed` events. |
 | **INSUFFICIENT** | Missing Advisory (404) | `0x6cfe87b8ab53ec0c06219bd7ed049c2f1a17e53ab56330cebece766cf4402df4` | Funder refunded `0.01 GEN`. Failed fetch safely failed closed. |
 | **CANCELED & WITHDRAWN** | Open Escrow Hatch | `0xc48b2bfc6922b0d24c4e65fab2a36f585cd89f6f34594f5fa4bab78f84293c1f` | Funder canceled and withdrew `0.05 GEN` with zero remaining balance. |
-
-*Full evidence receipts and parameters are cataloged in [`evidence/studionet.json`](evidence/studionet.json).*
 
 ---
 
@@ -122,10 +120,10 @@ pytest tests/unit/ -v
 
 ### Prerequisites
 - Node.js 18+
-- MetaMask with GenLayer StudioNet configured:
-  - **Network Name:** `GenLayer StudioNet`
-  - **RPC URL:** `https://studio.genlayer.com/api`
-  - **Chain ID:** `61999`
+- MetaMask with GenLayer Studio Next configured:
+  - **Network Name:** `GenLayer Studio Next`
+  - **RPC URL:** `https://studio-dev.genlayer.com/api`
+  - **Chain ID:** `61997`
   - **Currency Symbol:** `GEN`
 
 ### Setup
@@ -174,6 +172,4 @@ remediate/
 ├── tests/
 │   ├── direct/               # GenLayer direct-mode simulation tests
 │   └── unit/                 # Pure Python logic unit tests
-└── evidence/
-    └── studionet.json        # Live settlement proof receipts
 ```
