@@ -197,7 +197,7 @@ export default function EscrowDocket() {
     else if (stateName === "FIXED_EQUIVALENT") resolutionResult = "Paid to recipient. LLM consensus approved equivalence.";
     else if (stateName === "NOT_FIXED") resolutionResult = "Refunded to funder. Patch did not fix vulnerability.";
     else if (stateName === "INSUFFICIENT") resolutionResult = claim?.rationale ? claim.rationale : "Refunded to funder. Evidence missing or unavailable.";
-    else if (stateName === "ESCALATED") resolutionResult = claim?.rationale || "Payout paused. Funder escalated verdict for manual review.";
+    else if (stateName === "ESCALATED") resolutionResult = claim?.rationale || "Resolution paused. Funder escalated the verdict. If unresolved after 7 days, it defaults to NOT_FIXED via finalize_escalation().";
   }
 
   const formattedAmount = claim?.amount ? formatEther(BigInt(claim.amount)) : "0";
@@ -209,7 +209,7 @@ export default function EscrowDocket() {
           <div className="text-center font-mono p-8 border border-white/10 bg-[#111] shadow-2xl max-w-lg w-full mx-4">
             <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"></div>
             <h2 className="text-xl font-bold text-white mb-2 tracking-widest uppercase">
-              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : actionType === "finalize" ? "Finalizing Payout" : actionType === "appeal" ? "Filing Appeal" : actionType === "finalize_escalation" ? "Finalizing Escalation" : "Processing Withdrawal"}
+              {actionType === "resolve" ? "Reaching Consensus" : actionType === "cancel" ? "Canceling Escrow" : actionType === "finalize" ? "Finalizing Verdict" : actionType === "appeal" ? "Filing Appeal" : actionType === "finalize_escalation" ? "Finalizing Escalation" : "Processing Withdrawal"}
             </h2>
             <p className="text-gray-400 text-sm break-words">{message}</p>
           </div>
@@ -341,7 +341,7 @@ export default function EscrowDocket() {
                 {claim?.appeal_deadline ? (
                   <p className={`text-white ${currentTime >= parseInt(claim.appeal_deadline) ? "text-state-exact" : ""}`}>
                     {currentTime >= parseInt(claim.appeal_deadline)
-                      ? "UNLOCKED (Recipient can finalize)"
+                      ? "UNLOCKED (Anyone can finalize)"
                       : `${Math.max(0, parseInt(claim.appeal_deadline) - currentTime)}s remaining`}
                   </p>
                 ) : (
@@ -425,7 +425,7 @@ export default function EscrowDocket() {
             disabled={!!actionType || (claim?.appeal_deadline && currentTime < parseInt(claim.appeal_deadline))}
             className="bg-white text-black font-bold uppercase tracking-wider px-6 py-3 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:hover:bg-white"
           >
-            {actionType === "finalize" ? "Pending..." : "Finalize Payout"}
+            {actionType === "finalize" ? "Pending..." : "Finalize Verdict"}
           </button>
         )}
 

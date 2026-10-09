@@ -65,7 +65,7 @@ graph TD
 
 ### Key Security Properties
 
-- **Fail-Closed by Default:** Crashing inputs, 404s, or consensus logic failures result in an `INSUFFICIENT` verdict that refunds the funder after the appeal window. Transient fetch failures (rate limits, timeouts) revert the transaction to allow retrying.
+- **Fail-Closed by Default:** Missing patches, oversized diffs (>10KB), or OSV 404s result in a definitive `INSUFFICIENT` verdict that enters `PENDING_APPEAL` and refunds the funder only after finalization. Transient fetch failures (rate limits, timeouts) and consensus execution exceptions revert the `resolve()` transaction to allow retrying.
 - **Rug-Pull Protection:** Funders cannot cancel the escrow immediately. A strict 7-day cancellation time-lock ensures the developer has a fair window to submit a patch.
 - **Equivalence Appeals:** When consensus evaluates a patch (yielding any definitive verdict, including `INSUFFICIENT`), the claim enters a 24-hour `PENDING_APPEAL` state before credits are allocated.
 - **CEI Pattern (Checks-Effects-Interactions):** In `withdraw()`, the user credit balance is zeroed to `0` *before* the external `emit_transfer` call. If the transfer fails, the entire transaction reverts atomically. Re-entrancy is prevented.
