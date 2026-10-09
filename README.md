@@ -119,6 +119,8 @@ Runs the full contract logic via the GenLayer direct-mode simulator — no live 
 pytest tests/direct/test_remediate.py -v
 ```
 
+Direct tests pin GenVM runner `v0.2.16` in `tests/direct/conftest.py`. On a fresh machine, `genlayer-test` downloads this runner from the [official release](https://github.com/genlayerlabs/genvm/releases/tag/v0.2.16); the package's unpinned newest-release fallback currently points to an unavailable `genvm-universal.tar.xz` asset. The deployed contract's `Depends` hash is unchanged.
+
 Tests included:
 - `test_sequential_claims_return_distinct_deterministic_ids` — 5 sequential claims produce 5 unique `claim-0x...` IDs
 - `test_invalid_commit_sha_reverts` — Malformed SHA (< 40 chars) raises `UserError`
