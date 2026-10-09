@@ -197,7 +197,7 @@ export default function EscrowDocket() {
     else if (stateName === "FIXED_EQUIVALENT") resolutionResult = "Paid to recipient. LLM consensus approved equivalence.";
     else if (stateName === "NOT_FIXED") resolutionResult = "Refunded to funder. Patch did not fix vulnerability.";
     else if (stateName === "INSUFFICIENT") resolutionResult = claim?.rationale ? claim.rationale : "Refunded to funder. Evidence missing or unavailable.";
-    else if (stateName === "ESCALATED") resolutionResult = claim?.rationale || "Resolution paused. Funder escalated the verdict. If unresolved after 7 days, it defaults to NOT_FIXED via finalize_escalation().";
+    else if (stateName === "ESCALATED") resolutionResult = "Resolution paused. Funder escalated the verdict. If unresolved after 7 days, it defaults to NOT_FIXED via finalize_escalation().";
   }
 
   const formattedAmount = claim?.amount ? formatEther(BigInt(claim.amount)) : "0";

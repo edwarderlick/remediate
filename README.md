@@ -83,7 +83,7 @@ graph TD
 | `FIXED_EQUIVALENT` | `finalize()` called by anyone after 24h, LLM equivalent | 100% bounty credited to Recipient |
 | `NOT_FIXED` | `finalize()` called by anyone after 24h, LLM not equivalent | 100% refund credited to Funder |
 | `INSUFFICIENT` | `finalize()` called by anyone after 24h, OSV 404/patch >10KB | 100% refund credited to Funder |
-| `ESCALATED` | `appeal()` called by funder during `PENDING_APPEAL` | Resolution halted for manual review |
+| `ESCALATED` | `appeal()` called by funder during `PENDING_APPEAL` | Claim waits 7 days. Anyone may call `finalize_escalation()` to default to `NOT_FIXED` (100% refund). |
 | `CANCELED` | `cancel()` called by funder after 7-day lock | 100% refund credited to Funder |
 
 ---
