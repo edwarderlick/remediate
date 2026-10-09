@@ -23,7 +23,7 @@ export default function LandingPage() {
           Vulnerability Escrow.
         </h1>
         <p className="text-xl md:text-2xl text-gray-400 max-w-2xl font-medium">
-          Byte-match payouts. Missing data refunds. Fail-closed intelligent contract logic.
+          Source-backed verdicts. Time-locked settlement. Fail-closed intelligent contract logic.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-4 pt-8">
@@ -40,22 +40,22 @@ export default function LandingPage() {
         <div className="border border-lines bg-surface p-6 flex flex-col items-start gap-4 hover:border-state-exact transition-colors">
           <ShieldCheck className="w-8 h-8 text-state-exact" />
           <h3 className="font-bold text-lg">Exact Match → Payout</h3>
-          <p className="text-sm text-gray-400">If the provided commit SHA exactly matches the pinned OSV JSON evidence, the recipient is paid instantly.</p>
+          <p className="text-sm text-gray-400">An exact OSV fixed-commit match enters a 24-hour appeal window. After finalization, the recipient can withdraw the credited payout.</p>
         </div>
         <div className="border border-lines bg-surface p-6 flex flex-col items-start gap-4 hover:border-state-fail transition-colors">
           <RefreshCcw className="w-8 h-8 text-state-fail" />
           <h3 className="font-bold text-lg">Unrelated → Refund</h3>
-          <p className="text-sm text-gray-400">If the commit does not remediate the advisory (via LLM equivalence check), the test GEN is refunded to the funder.</p>
+          <p className="text-sm text-gray-400">A NOT_FIXED verdict enters the appeal window. After finalization, the funder can withdraw the credited refund.</p>
         </div>
         <div className="border border-lines bg-surface p-6 flex flex-col items-start gap-4 hover:border-state-fail transition-colors">
           <AlertTriangle className="w-8 h-8 text-state-fail" />
-          <h3 className="font-bold text-lg">Data Missing → Refund</h3>
-          <p className="text-sm text-gray-400">If the OSV JSON is 404, rate-limited, or the patch is empty, the escrow fails closed and refunds the funder.</p>
+          <h3 className="font-bold text-lg">Insufficient Evidence</h3>
+          <p className="text-sm text-gray-400">A definitive OSV 404 or oversized patch can lead to a refund after finalization. Rate limits and empty responses revert for retry.</p>
         </div>
       </div>
 
       <footer className="z-10 mt-32 border-t border-lines w-full py-8 text-center text-xs font-mono text-gray-500 flex flex-col items-center gap-2">
-        <p>NOT A PROFESSIONAL AUDIT. STUDIO NET TEST GEN ONLY.</p>
+        <p>NOT A PROFESSIONAL AUDIT. STUDIO NEXT TEST GEN ONLY.</p>
         <p>CONTRACT: {CONTRACT_ADDRESS}</p>
       </footer>
     </div>

@@ -31,7 +31,7 @@ export default function LimitsPage() {
             <li>github.com/&#123;owner&#125;/&#123;repo&#125;/commit/&#123;sha&#125;.patch</li>
           </ul>
           <p className="text-gray-400 mt-4 text-sm">
-            If these endpoints rate-limit or fail, the contract defaults to INSUFFICIENT and fails closed safely.
+            Rate limits and transient fetch failures revert resolution for retry. Definitive missing or oversized evidence can yield INSUFFICIENT, with funds allocated only after the appeal window and finalization.
           </p>
         </div>
       </div>

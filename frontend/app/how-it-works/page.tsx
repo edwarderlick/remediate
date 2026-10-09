@@ -15,7 +15,7 @@ export default function HowItWorks() {
         <section className="space-y-4">
           <h2 className="text-2xl font-bold text-white border-b border-lines pb-2">1. The Escrow Primitive</h2>
           <p>Remediate is a narrow, fail-closed escrow primitive built on GenLayer Studio Next. A funder locks a premium (test GEN) against a specific vulnerability advisory (OSV ID) and a proposed fix (Commit SHA).</p>
-          <p>This is not a bug bounty marketplace. There are no challenges, appeals, or subjective judges. The contract execution is completely deterministic based on the current state of public APIs (OSV and GitHub).</p>
+          <p>This is not a bug bounty marketplace. Exact fixes are checked against OSV; other patches can undergo GenLayer consensus review using bounded advisory details. The funder can appeal a verdict during the 24-hour window.</p>
         </section>
 
         <section className="space-y-4">
@@ -23,19 +23,19 @@ export default function HowItWorks() {
           <div className="grid grid-cols-1 gap-4">
             <div className="border-l-2 border-state-exact pl-4">
               <h3 className="font-bold text-state-exact">FIXED_EXACT</h3>
-              <p className="text-sm mt-1">The Intelligent Contract fetches the OSV JSON. If the provided Commit SHA is explicitly listed in the <code>events.fixed</code> array for the repository, the payout is released to the recipient.</p>
+              <p className="text-sm mt-1">The contract checks OSV fixed events for the selected repository. An exact match enters the 24-hour appeal window; after finalization, the recipient can withdraw the credited payout.</p>
             </div>
             <div className="border-l-2 border-state-equiv pl-4">
               <h3 className="font-bold text-state-equiv">FIXED_EQUIVALENT</h3>
-              <p className="text-sm mt-1">If no exact byte-match exists, the contract fetches the `.patch` from GitHub and uses GenLayer's built-in LLM consensus to evaluate logical equivalence. If validators agree it fixes the advisory, the recipient is paid.</p>
+              <p className="text-sm mt-1">If no exact match exists, the contract fetches the GitHub patch and uses GenLayer consensus to evaluate an equivalent fix. A favorable verdict can be finalized after the appeal window, then withdrawn by the recipient.</p>
             </div>
             <div className="border-l-2 border-state-fail pl-4">
               <h3 className="font-bold text-state-fail">NOT_FIXED</h3>
-              <p className="text-sm mt-1">If the LLM consensus determines the patch does not fix the vulnerability, the contract refunds the original funder.</p>
+              <p className="text-sm mt-1">If consensus determines the patch does not fix the vulnerability, the verdict enters the appeal window. After finalization, the funder can withdraw the credited refund.</p>
             </div>
             <div className="border-l-2 border-state-fail pl-4">
               <h3 className="font-bold text-state-fail">INSUFFICIENT</h3>
-              <p className="text-sm mt-1">If the OSV API returns 404, rate limits, or the GitHub patch is empty, the contract fails closed safely and refunds the funder immediately.</p>
+              <p className="text-sm mt-1">Definitive missing or oversized evidence can yield an INSUFFICIENT verdict and a refund after finalization. Rate limits and empty responses revert the resolution for retry.</p>
             </div>
           </div>
         </section>
