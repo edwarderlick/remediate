@@ -71,6 +71,24 @@ def test_resolve_later_affected_entry(direct_vm, direct_deploy, direct_alice, di
     contract.resolve(cid)
     assert contract.get_claim(cid)["appeal_state"] == "FIXED_EXACT"
 
+
+def test_resolve_first_affected_entry(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.sender = direct_alice
+    direct_vm.value = 10**16
+    contract = direct_deploy("contract/remediate.py")
+    fixed_sha = "1111111111111111111111111111111111111111"
+    cid = contract.create_claim("GHSA-1234", "alice/repo", fixed_sha, "0x" + direct_bob.hex())
+
+    osv_res = json.dumps({"id": "GHSA-1234", "affected": [
+        {"ranges": [{"type": "GIT", "repo": "https://github.com/alice/repo", "events": [{"fixed": fixed_sha}]}]},
+        {"ranges": [{"type": "GIT", "repo": "https://github.com/other/repo", "events": [{"fixed": "2222222222222222222222222222222222222222"}]}]}
+    ]})
+    direct_vm.mock_web("https://api.osv.dev/v1/vulns/GHSA-1234", {"body": osv_res, "status": 200, "method": "GET"})
+
+    direct_vm.sender = direct_bob
+    contract.resolve(cid)
+    assert contract.get_claim(cid)["appeal_state"] == "FIXED_EXACT"
+
 def test_resolve_misleading_references(direct_vm, direct_deploy, direct_alice, direct_bob):
     direct_vm.sender = direct_alice
     direct_vm.value = 10**16
