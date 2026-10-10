@@ -9,12 +9,11 @@ export function handleDeploymentReceipt(tx: any): {
   
   // Non-terminal states: UNINITIALIZED, PENDING, PROPOSING, COMMITTING, REVEALING, 
   // UNDETERMINED, APPEAL_REVEALING, APPEAL_COMMITTING, LEADER_REVEALING.
-  // Terminal states (success): ACCEPTED, FINALIZED.
+  // ACCEPTED has executed but may not yet be final on Studio Next.
   // Terminal states (failures): CANCELED, VALIDATORS_TIMEOUT, LEADER_TIMEOUT.
   
   if (
     statusStr === "FINALIZED" ||
-    statusStr === "ACCEPTED" ||
     statusStr === "CANCELED" ||
     statusStr === "VALIDATORS_TIMEOUT" ||
     statusStr === "LEADER_TIMEOUT"

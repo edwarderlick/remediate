@@ -18,4 +18,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
+      - run: genvm-lint check contract/remediate.py --json
       - run: python -m pytest tests/direct tests/unit -q -rs

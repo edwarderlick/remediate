@@ -11,19 +11,21 @@ Funders lock native GEN against a specific repository and vulnerability advisory
 ### 🌐 Live Protocol Info
 - **Live App:** [https://remediate-five.vercel.app/](https://remediate-five.vercel.app/)
 - **Repository:** [GitHub Repository](https://github.com/edwarderlick/remediate)
-- **Studio Next Contract Address:** [0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF](https://explorer-studio-dev.genlayer.com/address/0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF)
-- **Deployment Transaction:** [0x48fd35ff51c75b38baaaedb9e1cfea7a2319fd5e9ba318a7cab885e790e28dbe](https://explorer-studio-dev.genlayer.com/tx/0x48fd35ff51c75b38baaaedb9e1cfea7a2319fd5e9ba318a7cab885e790e28dbe)
+- **Studio Next Contract Address:** [0xeD0Ad73489c16C113c2613e68557cAab29eb72AB](https://explorer-studio-dev.genlayer.com/address/0xeD0Ad73489c16C113c2613e68557cAab29eb72AB)
+- **Deployment Transaction:** [0x2954897f9a6131587934c8a39a60871f62223aa0090d48bfd3dfc847d39957a4](https://explorer-studio-dev.genlayer.com/tx/0x2954897f9a6131587934c8a39a60871f62223aa0090d48bfd3dfc847d39957a4)
 - **Chain ID:** `61997`
 - **RPC Endpoint:** `https://studio-dev.genlayer.com/api`
-- **Deployed Source SHA-256:** `e9a56ddcda59c5e7e07e14740493d993e4afc3bfb17c592bf92f5e7117a347a3` (deployed and local source bytes match exactly)
+- **Deployed Source SHA-256:** `8fa443ba4118a531a0d27797116a3b479dc6a4a11be8334fa6547f9a09b74aab` (deployed and local source bytes match exactly)
 
-The previous contract [0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27](https://explorer-studio-dev.genlayer.com/address/0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27) recorded zero-valued timestamps. Do not create claims there. An existing 1 GEN claim remains unresolved; deploying the replacement does not move or recover its funds.
+The previous production contract [0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF](https://explorer-studio-dev.genlayer.com/address/0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF) remains live for existing claims. Its source hash is `e9a56ddcda59c5e7e07e14740493d993e4afc3bfb17c592bf92f5e7117a347a3`, and its [deployment transaction](https://explorer-studio-dev.genlayer.com/tx/0x48fd35ff51c75b38baaaedb9e1cfea7a2319fd5e9ba318a7cab885e790e28dbe) finalized. Existing deposits and deadlines did not migrate; finalize and withdraw those claims at that address. An older contract [0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27](https://explorer-studio-dev.genlayer.com/address/0x1dDfF0AC420Ac06902DB9773204D3eBFa2C15f27) recorded zero-valued timestamps and still has an unresolved 1 GEN claim. Do not create claims there.
 
 ### On-Chain Validation
 
+The following claim lifecycle receipts belong to the previous production contract or its 90-second canary. The current contract differs from the previous production source only by a static `gl.contract.Contract` base class, which passes GenVM validation. The current deployment is independently verified above, but no claim lifecycle is attributed to the new address yet.
+
 - **Production exact-fix claim:** `claim-0x1e6fbc48e290d48b`, [create transaction](https://explorer-studio-dev.genlayer.com/tx/0x6427f314ce0803b5d9baa5dffcb87338e6f2ebf75c7fc847f2246aab2828f863), [resolve transaction](https://explorer-studio-dev.genlayer.com/tx/0xba957a7ff5c3dc22d393d226f0f7588384a7b8746efe36f13267ac7faba239ea). Both finalized successfully. The claim is `PENDING_APPEAL` with `FIXED_EXACT` verdict and a real 24-hour deadline of 2026-10-10 11:05:56 UTC. Production finalization and withdrawal remain pending until that deadline.
 - **Production repository-applicability rejection:** `claim-0x142cd195da78b319` used OSV-2017-1 against unrelated repository `edwarderlick/remediate` with a 0.001 GEN deposit. [Create](https://explorer-studio-dev.genlayer.com/tx/0x11707c86621959133b4f95b0959c87efa4e031be3d428c2cdf9e54c11733233c) and [resolve](https://explorer-studio-dev.genlayer.com/tx/0x010afde9efd05e82672ed7e469c04e2b5cd1bdb7221db2adb5d840b0b9befbdd) both finalized with `FINISHED_WITH_RETURN`. The submitted contract returned `PENDING_APPEAL` / `INSUFFICIENT`; its real deadline is 2026-10-10 14:15:32 UTC. The 0.001 GEN remains locked until finalization and withdrawal after that deadline.
-- **Short-window canary (separate contract):** [contract](https://explorer-studio-dev.genlayer.com/address/0x9e440127500A4e65e4BF41494b7cf3D4bBF49BC3), [deploy](https://explorer-studio-dev.genlayer.com/tx/0xdb4d3c381498da7dbc039d1c819d0362162179ea511d262c9bde02de5172fc21), [create](https://explorer-studio-dev.genlayer.com/tx/0xdaeed5145fe66045bd07fd2342c193e9afc665a5201325268ec7cb9f9779dab3), [resolve](https://explorer-studio-dev.genlayer.com/tx/0xba639a024f059d539f7cfdf00bea06da100dcb592125a2a71ae7dfc54f7c8ac5), [finalize](https://explorer-studio-dev.genlayer.com/tx/0xc03ed6b74bdfe8b1926a97d73edcbb4abc1a408d57e7e0f3aa8e448968ae78ed), [withdraw](https://explorer-studio-dev.genlayer.com/tx/0x25e10b8cce90da8648e725c9c1f657578f750690c17cabcf6c9f7ab46cadefcb). This canary changes only the appeal window from 24 hours to 90 seconds; its native withdrawal finalized and recipient credit returned to zero. It is not the production contract.
+- **Short-window canary (separate contract):** [contract](https://explorer-studio-dev.genlayer.com/address/0x9e440127500A4e65e4BF41494b7cf3D4bBF49BC3), [deploy](https://explorer-studio-dev.genlayer.com/tx/0xdb4d3c381498da7dbc039d1c819d0362162179ea511d262c9bde02de5172fc21), [create](https://explorer-studio-dev.genlayer.com/tx/0xdaeed5145fe66045bd07fd2342c193e9afc665a5201325268ec7cb9f9779dab3), [resolve](https://explorer-studio-dev.genlayer.com/tx/0xba639a024f059d539f7cfdf00bea06da100dcb592125a2a71ae7dfc54f7c8ac5), [finalize](https://explorer-studio-dev.genlayer.com/tx/0xc03ed6b74bdfe8b1926a97d73edcbb4abc1a408d57e7e0f3aa8e448968ae78ed), [withdraw](https://explorer-studio-dev.genlayer.com/tx/0x25e10b8cce90da8648e725c9c1f657578f750690c17cabcf6c9f7ab46cadefcb). Relative to the previous production contract, this canary changes only the appeal window from 24 hours to 90 seconds; its native withdrawal finalized and recipient credit returned to zero. It is not the current production contract.
 - **Canary repository-applicability rejection:** `claim-0x386dce5f7381a8b3` used OSV-2017-1 against unrelated repository `edwarderlick/remediate` with a 0.001 GEN deposit. [Create](https://explorer-studio-dev.genlayer.com/tx/0x9f62eb460b4cafe575f599e5d589c9eb22682da4d4278a06cb6a63be614cce70), [resolve](https://explorer-studio-dev.genlayer.com/tx/0x290cbc87758343fd42614f9f892c135b8afd02efbee0e85fa22eb1affd06c0ad), [finalize](https://explorer-studio-dev.genlayer.com/tx/0x0030532bbe7d2d701afbbedf68bac066bc5113707499194ed2e1001a067044a7), and [withdraw](https://explorer-studio-dev.genlayer.com/tx/0x11c74d0196c045ba8043bfca29f00eadeffa9501446649619428359c8ae049da) all finalized with `FINISHED_WITH_RETURN`. Resolution yielded `INSUFFICIENT`; finalization credited the funder 0.001 GEN, and withdrawal reduced credit to zero. This is the separate 90-second canary, not the 24-hour production contract. Run the read-only preflight with `npx tsx scripts/smoke_applicability.ts`; add `--run` for four paid canary transactions, or `--production-resolve --run` for two paid production create/resolve transactions.
 
 ---
@@ -113,6 +115,8 @@ Real transactions finalized on the legacy GenLayer StudioNet demonstrating the f
 
 The test suite covers deterministic claim ID generation, input validation, access control, settlement credit logic, and withdrawal mechanics.
 
+GenVM lint and validation against the deployed source can be repeated with `genvm-lint check contract/remediate.py --json` after installing `requirements.txt`. Both checks pass; the validator exposes 13 methods. The contract uses a static `gl.contract.Contract` base so the validator can resolve its constructor.
+
 ### 1. Direct GenLayer Tests (Primary)
 Runs the full contract logic via the GenLayer direct-mode simulator — no live network required:
 ```bash
@@ -161,7 +165,7 @@ pytest tests/unit/ -v
    ```
    Open `.env.local` and set the contract address:
    ```env
-   NEXT_PUBLIC_CONTRACT_ADDRESS=0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF
+   NEXT_PUBLIC_CONTRACT_ADDRESS=0xeD0Ad73489c16C113c2613e68557cAab29eb72AB
    ```
 
 3. **Run Development Server**

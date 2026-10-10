@@ -91,11 +91,7 @@ def get_nonce() -> str:
         pass
     return ""
 
-try:
-    _BaseContract = gl.Contract
-except AttributeError:
-    _BaseContract = gl.contract.Contract
-class RemediateContract(_BaseContract):
+class RemediateContract(gl.contract.Contract):
     claims: TreeMap[str, Claim]
     credits: TreeMap[str, u256]
     claim_list: DynArray[str]

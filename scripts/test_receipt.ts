@@ -11,7 +11,7 @@ export function runOfflineTests() {
     
     // 1. Success fixture
     const successTx = {
-        status: "ACCEPTED",
+        status: "FINALIZED",
         txDataDecoded: {
             contractAddress: "0x1234567890123456789012345678901234567890"
         },
@@ -25,7 +25,7 @@ export function runOfflineTests() {
     
     // 2. VM Error fixture
     const errorTx = {
-        status: "ACCEPTED",
+        status: "FINALIZED",
         txExecutionResultName: "REVERTED",
         error: "Execution exception in contract"
     };
@@ -73,6 +73,12 @@ export function runOfflineTests() {
     
     const pendingResult = handleDeploymentReceipt(pendingTx);
     assert(pendingResult.isFinalized === false, "Pending should not be finalized");
+
+    const acceptedTx = {
+        status: "ACCEPTED",
+        txExecutionResultName: "FINISHED_WITH_RETURN"
+    };
+    assert(handleDeploymentReceipt(acceptedTx).isFinalized === false, "Accepted must wait for finality");
     
     // 4. Timeout is generally handled by loop expiration, but let's test a tx that's just stuck
     const stuckTx = {

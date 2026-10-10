@@ -9,7 +9,7 @@ dotenv.config({ path: resolve("frontend/.env.local"), quiet: true });
 
 const production = process.argv.includes("--production-resolve");
 const address = (production
-  ? "0x3a31f2f54389a36B321c8ec66B64E092d2Da40bF"
+  ? "0xeD0Ad73489c16C113c2613e68557cAab29eb72AB"
   : "0x9e440127500A4e65e4BF41494b7cf3D4bBF49BC3") as `0x${string}`;
 const premium = 10n ** 15n;
 const account = createAccount(process.env.PRIVATE_KEY as `0x${string}`);
@@ -71,7 +71,18 @@ async function main() {
   const source = readFileSync(resolve("contract/remediate.py"), "utf8");
   const setting = "APPEAL_WINDOW_SECONDS = 86400  # 24 hours";
   if (source.split(setting).length !== 2) throw new Error("Production source changed");
-  const canarySource = source.replace(setting, "APPEAL_WINDOW_SECONDS = 90  # Canary only");
+  const currentClass = "class RemediateContract(gl.contract.Contract):\n";
+  if (source.split(currentClass).length !== 2) throw new Error("Production base class changed");
+  const previousClass = [
+    "try:",
+    "    _BaseContract = gl.Contract",
+    "except AttributeError:",
+    "    _BaseContract = gl.contract.Contract",
+    "class RemediateContract(_BaseContract):",
+    "",
+  ].join("\r\n");
+  const historicalSource = source.replace(currentClass, previousClass);
+  const canarySource = historicalSource.replace(setting, "APPEAL_WINDOW_SECONDS = 90  # Canary only");
   const expectedHash = createHash("sha256").update(production ? source : canarySource).digest("hex");
   const deployedHash = createHash("sha256").update(await client.getContractCode(address)).digest("hex");
   if (deployedHash !== expectedHash) throw new Error("Deployed source mismatch");
